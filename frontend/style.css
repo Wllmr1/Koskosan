@@ -1,0 +1,159 @@
+body{
+  margin:0;
+  height:100vh;
+  background:linear-gradient(135deg,#0f172a,#064e3b);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:Arial, Helvetica, sans-serif;
+}
+
+.phone-frame{
+  width:390px;
+  height:800px;
+  background:#efeae2;
+  border-radius:32px;
+  overflow:hidden;
+  box-shadow:0 25px 70px rgba(0,0,0,0.45);
+  display:flex;
+  flex-direction:column;
+}
+
+.top-bar{
+  background:#075e54;
+  color:white;
+  padding:16px;
+}
+
+.profile-section{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.avatar{
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  background:white;
+}
+
+.restaurant-name{
+  font-size:18px;
+  font-weight:bold;
+}
+
+.status{
+  font-size:13px;
+  opacity:0.85;
+  margin-top:3px;
+}
+
+.chat-box{
+  flex:1;
+  padding:16px;
+  overflow-y:auto;
+  background:#efeae2;
+}
+
+.message{
+  max-width:78%;
+  padding:10px 12px;
+  margin-bottom:12px;
+  border-radius:14px;
+  line-height:1.5;
+  white-space:pre-line;
+  animation:pop 0.2s ease;
+  font-size:14px;
+}
+
+.bot{
+  background:white;
+  margin-right:auto;
+  border-top-left-radius:4px;
+}
+
+.user{
+  background:#dcf8c6;
+  margin-left:auto;
+  border-top-right-radius:4px;
+}
+
+.message-text{
+  margin-bottom:4px;
+}
+
+.time{
+  text-align:right;
+  font-size:11px;
+  color:#777;
+}
+
+.quick-actions{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding:10px;
+  background:#f8fafc;
+}
+
+.quick-actions button{
+  border:none;
+  background:white;
+  color:#075e54;
+  border:1px solid #075e54;
+  padding:9px 13px;
+  border-radius:20px;
+  cursor:pointer;
+  white-space:nowrap;
+  font-weight:bold;
+}
+
+.input-area{
+  display:flex;
+  gap:8px;
+  padding:10px;
+  background:white;
+}
+
+input{
+  flex:1;
+  border:none;
+  outline:none;
+  background:#f1f5f9;
+  border-radius:25px;
+  padding:14px;
+  font-size:14px;
+}
+
+.input-area button{
+  border:none;
+  background:#075e54;
+  color:white;
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  cursor:pointer;
+  font-size:18px;
+}
+
+.typing{
+  background:white;
+  padding:10px 14px;
+  border-radius:14px;
+  width:max-content;
+  margin-bottom:12px;
+  color:#666;
+  font-size:13px;
+}
+
+@keyframes pop{
+  from{
+    transform:scale(0.95);
+    opacity:0;
+  }
+  to{
+    transform:scale(1);
+    opacity:1;
+  }
+}
