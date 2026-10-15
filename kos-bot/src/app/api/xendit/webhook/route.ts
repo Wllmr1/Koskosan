@@ -155,7 +155,7 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
   });
 
   // The person who chatted is now a renter: their chat memory stops expiring.
-  await promoteToMember(app.contactId, result.tenant.id);
+  if (app.contactId) await promoteToMember(app.contactId, result.tenant.id);
 
   await notifyOwner({
     dedupeKey: `contract:${app.reference}`,

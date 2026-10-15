@@ -9,6 +9,6 @@ import { loadEnv } from "vite";
 export default function setup() {
   const fileEnv = loadEnv("test", process.cwd(), "");
   const env = { ...process.env, DATABASE_URL: fileEnv.TEST_DATABASE_URL };
-  execSync("npx prisma db push --skip-generate", { env, stdio: "inherit" });
+  execSync("npx prisma db push --skip-generate --accept-data-loss", { env, stdio: "inherit" });
   execSync("npx tsx prisma/seed.ts", { env, stdio: "inherit" });
 }

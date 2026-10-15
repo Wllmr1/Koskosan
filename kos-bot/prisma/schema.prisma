@@ -14,7 +14,7 @@ datasource db {
 
 enum ContactType {
   PROSPECT // not a renter: Contact + chat deleted 24h after last message
-  MEMBER   // renter: kept, linked to a Tenant
+  MEMBER // renter: kept, linked to a Tenant
 }
 
 enum RoomStatus {
@@ -75,19 +75,27 @@ enum TicketStatus {
   RESOLVED
 }
 
+enum Channel {
+  WEB
+  WHATSAPP
+}
+
 // ─────────────────────────── who is texting ───────────────────────────
 
-/// One row per WhatsApp number that has ever messaged the bot.
+/// One row per conversation partner: a WhatsApp number, an anonymous website
+/// visitor ("anon:<id>"), or a logged-in renter on the website ("renter:<tenantId>").
 model Contact {
   id            String         @id @default(cuid())
-  waId          String         @unique // digits only: 6281234567890
-  phoneE164     String         @unique // +6281234567890
+  channel       Channel        @default(WHATSAPP)
+  waId          String?        @unique // WhatsApp only: digits, 6281234567890
+  phoneE164     String?        @unique // WhatsApp only: +6281234567890
+  webSessionId  String?        @unique // website only
   displayName   String?
   type          ContactType    @default(PROSPECT)
-  tenantId      String?        @unique
+  tenantId      String?
   tenant        Tenant?        @relation(fields: [tenantId], references: [id])
-  verifiedAt    DateTime? // set once the one-time link proves ownership
-  handoffUntil  DateTime? // while set, the bot stays silent and a human replies
+  verifiedAt    DateTime? // WhatsApp: set once the one-time link proves ownership
+  handoffUntil  DateTime? // WhatsApp: while set, the bot stays silent and a human replies
   blockedUntil  DateTime? // abuse cooldown
   lastMessageAt DateTime       @default(now())
   expiresAt     DateTime? // PROSPECT: lastMessageAt + 24h. MEMBER: null
@@ -98,6 +106,7 @@ model Contact {
 
   @@index([type, expiresAt])
   @@index([lastMessageAt])
+  @@index([tenantId])
 }
 
 /// One-time link proving a WhatsApp number belongs to a tenant.
@@ -116,20 +125,23 @@ model VerifyToken {
 // ──────────────────────────── renters ────────────────────────────
 
 model Tenant {
-  id           String      @id @default(cuid())
-  accountCode  String      @unique // "WA-0042"
-  fullName     String
-  phoneE164    String      @unique
-  email        String?
-  dateOfBirth  DateTime    @db.Date
-  idNumberEnc  String // KTP number, AES-256-GCM, stored as iv:tag:ciphertext hex
-  idLast4      String      @db.Char(4)
-  ktpObjectKey String? // private storage key, never a public URL
-  createdAt    DateTime    @default(now())
-  contact      Contact?
-  leases       Lease[]
-  guests       GuestStay[]
-  tickets      Ticket[]
+  id             String               @id @default(cuid())
+  accountCode    String               @unique // "WA-0042"
+  fullName       String
+  phoneE164      String               @unique
+  email          String?
+  dateOfBirth    DateTime             @db.Date
+  idNumberEnc    String // KTP number, AES-256-GCM, stored as iv:tag:ciphertext hex
+  idLast4        String               @db.Char(4)
+  ktpObjectKey   String? // private storage key, never a public URL
+  createdAt      DateTime             @default(now())
+  contacts       Contact[]
+  passwordHash   String? // scrypt$<salt>$<hash>; null until set
+  sessionVersion Int                  @default(0) // bump to log out every device
+  passwordTokens PasswordSetupToken[]
+  leases         Lease[]
+  guests         GuestStay[]
+  tickets        Ticket[]
 }
 
 model Room {
@@ -147,6 +159,9 @@ model Room {
   leases       Lease[]
   utility      UtilityPeriod[]
   applications Application[]
+  description  String          @default("")
+  hidden       Boolean         @default(false) // hidden rooms vanish from the site and the assistant
+  photos       Photo[]
   updatedAt    DateTime        @updatedAt
 
   @@index([status, monthlyPrice])
@@ -264,33 +279,34 @@ model Ticket {
 /// One signup attempt. The chat only ever hands out the link; all personal
 /// data is collected on the web form, never in WhatsApp.
 model Application {
-  id            String            @id @default(cuid())
-  reference     String            @unique // "APP-1042"
-  tokenHash     String            @unique
-  contactId     String
-  contact       Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  roomId        String
-  room          Room              @relation(fields: [roomId], references: [id])
-  plan          LeasePlan
-  status        ApplicationStatus @default(DRAFT)
-  fullName      String?
-  phoneE164     String?
-  dateOfBirth   DateTime?         @db.Date
-  idNumberEnc   String?
-  idLast4       String?           @db.Char(4)
-  ktpObjectKey  String?
-  signatureKey  String?
-  contractKey   String?
-  contractHash  String? // SHA-256 of the exact contract text the person signed
-  moveInDate    DateTime?         @db.Date
-  signedAt      DateTime?
-  signedIp      String?
-  signedAgent   String?
-  amountDue     Int?
-  leaseId       String?           @unique
-  invoices      Invoice[]
-  expiresAt     DateTime
-  createdAt     DateTime          @default(now())
+  id           String            @id @default(cuid())
+  reference    String            @unique // "APP-1042"
+  tokenHash    String            @unique
+  contactId    String?
+  contact      Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  roomId       String
+  room         Room              @relation(fields: [roomId], references: [id])
+  plan         LeasePlan
+  status       ApplicationStatus @default(DRAFT)
+  fullName     String?
+  phoneE164    String?
+  dateOfBirth  DateTime?         @db.Date
+  idNumberEnc  String?
+  idLast4      String?           @db.Char(4)
+  passwordHash String? // the renter's chosen password, copied to Tenant on payment
+  ktpObjectKey String?
+  signatureKey String?
+  contractKey  String?
+  contractHash String? // SHA-256 of the exact contract text the person signed
+  moveInDate   DateTime?         @db.Date
+  signedAt     DateTime?
+  signedIp     String?
+  signedAgent  String?
+  amountDue    Int?
+  leaseId      String?           @unique
+  invoices     Invoice[]
+  expiresAt    DateTime
+  createdAt    DateTime          @default(now())
 
   @@index([status, expiresAt])
 }
@@ -315,6 +331,7 @@ model Message {
   role           MessageRole
   content        String
   toolLog        Json? // tool names + ids only, never personal data
+  actions        Json? // link buttons shown with an assistant reply: [{kind,label,path}]
   waMessageId    String?      @unique
   createdAt      DateTime     @default(now())
   expiresAt      DateTime? // PROSPECT: +24h. MEMBER: +90 days
@@ -374,25 +391,30 @@ model OwnerNotification {
 
 /// Single row (id = "default"). Everything the bot and the site quote.
 model PropertySetting {
-  id             String   @id @default("default")
-  name           String
-  tagline        String
-  address        String
-  mapsUrl        String?
-  houseRules     String[] @default([])
-  paymentTerms   String[] @default([])
-  guestRules     String[] @default([])
-  facilities     String[] @default([])
-  guestFeePerNight Int    @default(50000)
-  lateFeePerDay  Int      @default(25000)
-  lateFeeMax     Int      @default(250000)
-  electricQuota  Int      @default(100)
-  electricRate   Int      @default(1700)
-  dueDayOfMonth  Int      @default(5)
-  yearlyMonths   Int      @default(11) // pay 11, get 12
-  minMonths      Int      @default(3)
-  guestCutoffHour Int     @default(21)
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default("default")
+  name              String
+  tagline           String
+  address           String
+  mapsUrl           String?
+  houseRules        String[] @default([])
+  paymentTerms      String[] @default([])
+  guestRules        String[] @default([])
+  facilities        String[] @default([])
+  guestFeePerNight  Int      @default(50000)
+  lateFeePerDay     Int      @default(25000)
+  lateFeeMax        Int      @default(250000)
+  electricQuota     Int      @default(100)
+  electricRate      Int      @default(1700)
+  dueDayOfMonth     Int      @default(5)
+  yearlyMonths      Int      @default(11) // pay 11, get 12
+  minMonths         Int      @default(3)
+  guestCutoffHour   Int      @default(21)
+  depositMonths     Int      @default(1)
+  depositReturnDays Int      @default(14)
+  utilitiesNote     String   @default("Air dan wifi termasuk, tanpa batas")
+  maxGuestNights    Int      @default(3)
+  maxGuestsAtOnce   Int      @default(2)
+  updatedAt         DateTime @updatedAt
 }
 
 model Service {
@@ -414,4 +436,31 @@ model FaqEntry {
   question  String
   answer    String
   sortOrder Int    @default(0)
+}
+
+/// Room photo (roomId set) or property gallery photo (roomId null). Public.
+model Photo {
+  id        String   @id @default(cuid())
+  roomId    String?
+  room      Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  caption   String   @default("")
+  key       String   @unique // "photos/<random>.webp" in storage
+  width     Int
+  height    Int
+  sortOrder Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([roomId, sortOrder])
+}
+
+/// Single-use link the owner sends so a renter can set or reset their password.
+model PasswordSetupToken {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
