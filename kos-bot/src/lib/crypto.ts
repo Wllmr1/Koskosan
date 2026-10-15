@@ -52,20 +52,30 @@ export const maskPhone = (v: string) => {
   return d.length < 8 ? "••••" : `${d.slice(0, 4)}${"•".repeat(4)}${d.slice(-4)}`;
 };
 
-/** Signed cookie value for the owner dashboard. */
+/**
+ * Signed, expiring cookie value: "<payload>.<expiry ms>.<hmac>".
+ * The payload must not contain "." (ids and "id:version" pairs never do).
+ */
 export function signSession(payload: string, ttlMs: number): string {
+  if (payload.includes(".")) throw new Error("Signed payload must not contain '.'");
   const exp = Date.now() + ttlMs;
   const body = `${payload}.${exp}`;
   const mac = crypto.createHmac("sha256", env().SESSION_SECRET).update(body).digest("hex");
   return `${body}.${mac}`;
 }
 
-export function verifySession(cookie: string | undefined): boolean {
-  if (!cookie) return false;
-  const parts = cookie.split(".");
-  if (parts.length !== 3) return false;
+/** The payload of a value made by signSession, or null if tampered or expired. */
+export function readSigned(value: string | undefined): string | null {
+  if (!value) return null;
+  const parts = value.split(".");
+  if (parts.length !== 3) return null;
   const [payload, exp, mac] = parts;
   const expected = crypto.createHmac("sha256", env().SESSION_SECRET).update(`${payload}.${exp}`).digest("hex");
-  if (!safeEqual(mac, expected)) return false;
-  return Number(exp) > Date.now();
+  if (!safeEqual(mac, expected)) return null;
+  if (!(Number(exp) > Date.now())) return null;
+  return payload;
+}
+
+export function verifySession(cookie: string | undefined): boolean {
+  return readSigned(cookie) !== null;
 }
