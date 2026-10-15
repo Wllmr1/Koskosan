@@ -1,0 +1,417 @@
+// Kos chatbot — PostgreSQL + Prisma
+// Money is stored as integer Rupiah. Never use Float for money.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── enums ───────────────────────────────
+
+enum ContactType {
+  PROSPECT // not a renter: Contact + chat deleted 24h after last message
+  MEMBER   // renter: kept, linked to a Tenant
+}
+
+enum RoomStatus {
+  AVAILABLE
+  BOOKED
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum LeasePlan {
+  MONTHLY
+  YEARLY
+}
+
+enum LeaseStatus {
+  PENDING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum InvoiceKind {
+  RENT
+  DEPOSIT
+  ONBOARDING // first payment + deposit in one invoice
+  GUEST
+  UTILITY_OVERAGE
+  LATE_FEE
+  SERVICE
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+  EXPIRED
+}
+
+enum ApplicationStatus {
+  DRAFT
+  DETAILS_SUBMITTED
+  SIGNED
+  AWAITING_PAYMENT
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+// ─────────────────────────── who is texting ───────────────────────────
+
+/// One row per WhatsApp number that has ever messaged the bot.
+model Contact {
+  id            String         @id @default(cuid())
+  waId          String         @unique // digits only: 6281234567890
+  phoneE164     String         @unique // +6281234567890
+  displayName   String?
+  type          ContactType    @default(PROSPECT)
+  tenantId      String?        @unique
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  verifiedAt    DateTime? // set once the one-time link proves ownership
+  handoffUntil  DateTime? // while set, the bot stays silent and a human replies
+  blockedUntil  DateTime? // abuse cooldown
+  lastMessageAt DateTime       @default(now())
+  expiresAt     DateTime? // PROSPECT: lastMessageAt + 24h. MEMBER: null
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+  verifyTokens  VerifyToken[]
+  applications  Application[]
+
+  @@index([type, expiresAt])
+  @@index([lastMessageAt])
+}
+
+/// One-time link proving a WhatsApp number belongs to a tenant.
+model VerifyToken {
+  id        String    @id @default(cuid())
+  contactId String
+  contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // SHA-256 of the raw token; the raw value is never stored
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([expiresAt])
+}
+
+// ──────────────────────────── renters ────────────────────────────
+
+model Tenant {
+  id           String      @id @default(cuid())
+  accountCode  String      @unique // "WA-0042"
+  fullName     String
+  phoneE164    String      @unique
+  email        String?
+  dateOfBirth  DateTime    @db.Date
+  idNumberEnc  String // KTP number, AES-256-GCM, stored as iv:tag:ciphertext hex
+  idLast4      String      @db.Char(4)
+  ktpObjectKey String? // private storage key, never a public URL
+  createdAt    DateTime    @default(now())
+  contact      Contact?
+  leases       Lease[]
+  guests       GuestStay[]
+  tickets      Ticket[]
+}
+
+model Room {
+  id           String          @id @default(cuid())
+  code         String          @unique // "B-204"
+  type         String // Standard / Deluxe / Studio
+  floor        Int
+  sizeLabel    String
+  monthlyPrice Int
+  bathroom     String
+  extras       String
+  status       RoomStatus      @default(AVAILABLE)
+  availableOn  DateTime?       @db.Date
+  sortOrder    Int             @default(0)
+  leases       Lease[]
+  utility      UtilityPeriod[]
+  applications Application[]
+  updatedAt    DateTime        @updatedAt
+
+  @@index([status, monthlyPrice])
+}
+
+model Lease {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  roomId      String
+  room        Room        @relation(fields: [roomId], references: [id])
+  plan        LeasePlan
+  monthlyRent Int // copied at signing, so later price changes never rewrite history
+  deposit     Int
+  startDate   DateTime    @db.Date
+  endDate     DateTime    @db.Date
+  status      LeaseStatus @default(PENDING)
+  signedAt    DateTime?
+  contractKey String? // signed PDF in private storage
+  invoices    Invoice[]
+  createdAt   DateTime    @default(now())
+
+  @@index([tenantId, status])
+  @@index([roomId, status])
+}
+
+model Invoice {
+  id               String        @id @default(cuid())
+  code             String        @unique
+  leaseId          String?
+  lease            Lease?        @relation(fields: [leaseId], references: [id])
+  applicationId    String?
+  application      Application?  @relation(fields: [applicationId], references: [id])
+  guestStayId      String?       @unique
+  guestStay        GuestStay?    @relation(fields: [guestStayId], references: [id])
+  kind             InvoiceKind
+  description      String
+  period           DateTime?     @db.Date
+  amount           Int
+  amountPaid       Int           @default(0)
+  dueDate          DateTime      @db.Date
+  status           InvoiceStatus @default(UNPAID)
+  gatewayInvoiceId String?       @unique
+  gatewayUrl       String?
+  expiresAt        DateTime?
+  payments         Payment[]
+  createdAt        DateTime      @default(now())
+
+  @@index([leaseId, status])
+  @@index([status, dueDate])
+}
+
+/// Written only by the Xendit webhook. The chatbot can never create one.
+model Payment {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  amount     Int
+  method     String
+  gatewayRef String   @unique // makes the webhook idempotent
+  paidAt     DateTime
+  raw        Json
+}
+
+model UtilityPeriod {
+  id         String   @id @default(cuid())
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  period     DateTime @db.Date // first day of the month
+  quotaKwh   Int      @default(100)
+  usedKwh    Decimal  @default(0) @db.Decimal(8, 2)
+  ratePerKwh Int      @default(1700)
+  source     String   @default("MANUAL")
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roomId, period])
+}
+
+model GuestStay {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  guestName   String
+  phoneE164   String
+  idNumberEnc String
+  idLast4     String   @db.Char(4)
+  checkIn     DateTime @db.Date
+  nights      Int
+  fee         Int
+  approved    Boolean  @default(false)
+  invoice     Invoice?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, checkIn])
+}
+
+model Ticket {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  category    String
+  description String
+  urgency     String // biasa | mendesak | darurat
+  status      TicketStatus @default(OPEN)
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([status, createdAt])
+}
+
+// ───────────────────── secure application flow ─────────────────────
+
+/// One signup attempt. The chat only ever hands out the link; all personal
+/// data is collected on the web form, never in WhatsApp.
+model Application {
+  id            String            @id @default(cuid())
+  reference     String            @unique // "APP-1042"
+  tokenHash     String            @unique
+  contactId     String
+  contact       Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  roomId        String
+  room          Room              @relation(fields: [roomId], references: [id])
+  plan          LeasePlan
+  status        ApplicationStatus @default(DRAFT)
+  fullName      String?
+  phoneE164     String?
+  dateOfBirth   DateTime?         @db.Date
+  idNumberEnc   String?
+  idLast4       String?           @db.Char(4)
+  ktpObjectKey  String?
+  signatureKey  String?
+  contractKey   String?
+  contractHash  String? // SHA-256 of the exact contract text the person signed
+  moveInDate    DateTime?         @db.Date
+  signedAt      DateTime?
+  signedIp      String?
+  signedAgent   String?
+  amountDue     Int?
+  leaseId       String?           @unique
+  invoices      Invoice[]
+  expiresAt     DateTime
+  createdAt     DateTime          @default(now())
+
+  @@index([status, expiresAt])
+}
+
+// ─────────────────────────── chat memory ───────────────────────────
+
+model Conversation {
+  id        String    @id @default(cuid())
+  contactId String
+  contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel   String    @default("whatsapp")
+  startedAt DateTime  @default(now())
+  messages  Message[]
+
+  @@index([contactId, startedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String
+  toolLog        Json? // tool names + ids only, never personal data
+  waMessageId    String?      @unique
+  createdAt      DateTime     @default(now())
+  expiresAt      DateTime? // PROSPECT: +24h. MEMBER: +90 days
+
+  @@index([conversationId, createdAt])
+  @@index([expiresAt])
+}
+
+/// Deduplicates Meta's webhook retries so the bot never answers twice.
+model ProcessedWebhook {
+  key        String   @id // "wa:<message id>" or "xendit:<event id>"
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
+}
+
+/// Simple DB-backed rate limiting. No Redis needed at this scale.
+model RateCounter {
+  key       String   @id // "wa:6281…:minute:2026-10-09T11:23"
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String // bot | owner | webhook:xendit | job:purge
+  action    String
+  contactId String?
+  tenantId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+}
+
+/// Every owner alert that was sent, so nothing is sent twice and you can audit.
+model OwnerNotification {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  title     String
+  subject   String
+  body      String
+  sms       String
+  channels  String // channels that succeeded: "email,whatsapp"
+  template  String   @default("owner_alert")
+  sentAt    DateTime @default(now())
+  error     String? // set while any channel is still failing; the hourly job retries
+  attempts  Int      @default(1)
+
+  @@index([sentAt])
+}
+
+// ────────────────── property content (drives the site) ──────────────────
+
+/// Single row (id = "default"). Everything the bot and the site quote.
+model PropertySetting {
+  id             String   @id @default("default")
+  name           String
+  tagline        String
+  address        String
+  mapsUrl        String?
+  houseRules     String[] @default([])
+  paymentTerms   String[] @default([])
+  guestRules     String[] @default([])
+  facilities     String[] @default([])
+  guestFeePerNight Int    @default(50000)
+  lateFeePerDay  Int      @default(25000)
+  lateFeeMax     Int      @default(250000)
+  electricQuota  Int      @default(100)
+  electricRate   Int      @default(1700)
+  dueDayOfMonth  Int      @default(5)
+  yearlyMonths   Int      @default(11) // pay 11, get 12
+  minMonths      Int      @default(3)
+  guestCutoffHour Int     @default(21)
+  updatedAt      DateTime @updatedAt
+}
+
+model Service {
+  id        String @id @default(cuid())
+  name      String
+  priceNote String
+  sortOrder Int    @default(0)
+}
+
+model NearbyPlace {
+  id        String @id @default(cuid())
+  name      String
+  distance  String
+  sortOrder Int    @default(0)
+}
+
+model FaqEntry {
+  id        String @id @default(cuid())
+  question  String
+  answer    String
+  sortOrder Int    @default(0)
+}
