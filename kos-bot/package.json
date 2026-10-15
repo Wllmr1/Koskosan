@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "cron:purge": "tsx src/scripts/run-purge.ts",
     "cron:reminders": "tsx src/scripts/run-reminders.ts",
-    "wa:templates": "tsx src/scripts/create-templates.ts"
+    "wa:templates": "tsx src/scripts/create-templates.ts",
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -37,7 +38,8 @@
     "@types/react-dom": "^19.0.0",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "3.2.4"
   },
   "engines": {
     "node": ">=20.11"
