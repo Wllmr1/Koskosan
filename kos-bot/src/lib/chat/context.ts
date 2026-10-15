@@ -38,7 +38,7 @@ export type ChatCtx = {
 };
 
 /** Called for every inbound message. Creates or refreshes the Contact. */
-export async function resolveContext(waId: string, profileName?: string): Promise<ChatCtx> {
+export async function resolveWhatsAppContext(waId: string, profileName?: string): Promise<ChatCtx> {
   const digits = waId.replace(/\D/g, "");
   const phoneE164 = "+" + digits;
   const now = new Date();
@@ -104,7 +104,110 @@ export async function resolveContext(waId: string, profileName?: string): Promis
   };
 }
 
-async function currentConversation(contactId: string, type: ContactType) {
+export const webAnonKey = (anonId: string) => `anon:${anonId}`;
+export const webRenterKey = (tenantId: string) => `renter:${tenantId}`;
+
+const isBlocked = (c: { blockedUntil: Date | null }, now: Date) => !!c.blockedUntil && c.blockedUntil > now;
+
+async function activeTenant(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: {
+      leases: {
+        where: { status: "ACTIVE" },
+        include: { room: { select: { code: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+  return tenant && tenant.leases.length ? { tenant, lease: tenant.leases[0] } : null;
+}
+
+/**
+ * Website visitor. A logged-in renter with an active lease gets their own
+ * member conversation (shared across their devices). Everyone else — including
+ * a renter whose lease has ended — is an anonymous prospect, forgotten 24 hours
+ * after their last message.
+ */
+export async function resolveWebContext(opts: { anonId: string; tenantId: string | null }): Promise<ChatCtx> {
+  const now = new Date();
+
+  const renter = opts.tenantId ? await activeTenant(opts.tenantId) : null;
+  if (renter) {
+    const { tenant, lease } = renter;
+    const key = webRenterKey(tenant.id);
+    const contact = await prisma.contact.upsert({
+      where: { webSessionId: key },
+      create: {
+        channel: Channel.WEB,
+        webSessionId: key,
+        displayName: tenant.fullName,
+        type: ContactType.MEMBER,
+        tenantId: tenant.id,
+        verifiedAt: now,
+        lastMessageAt: now,
+        expiresAt: null,
+      },
+      update: { lastMessageAt: now, displayName: tenant.fullName, type: ContactType.MEMBER, tenantId: tenant.id, expiresAt: null },
+    });
+    const conversation = await currentConversation(contact.id, ContactType.MEMBER);
+    return {
+      contactId: contact.id,
+      conversationId: conversation.id,
+      channel: Channel.WEB,
+      waId: null,
+      phoneE164: tenant.phoneE164,
+      name: tenant.fullName,
+      type: ContactType.MEMBER,
+      tenantId: tenant.id,
+      accountCode: tenant.accountCode,
+      roomCode: lease.room.code,
+      verified: true,
+      handoff: false,
+      blocked: isBlocked(contact, now),
+      actions: [],
+    };
+  }
+
+  const key = webAnonKey(opts.anonId);
+  const expiresAt = new Date(now.getTime() + PROSPECT_TTL_MS);
+  const contact = await prisma.contact.upsert({
+    where: { webSessionId: key },
+    create: { channel: Channel.WEB, webSessionId: key, type: ContactType.PROSPECT, lastMessageAt: now, expiresAt },
+    update: { lastMessageAt: now, expiresAt },
+  });
+  const conversation = await currentConversation(contact.id, ContactType.PROSPECT);
+  return {
+    contactId: contact.id,
+    conversationId: conversation.id,
+    channel: Channel.WEB,
+    waId: null,
+    phoneE164: null,
+    name: contact.displayName,
+    type: ContactType.PROSPECT,
+    tenantId: null,
+    accountCode: null,
+    roomCode: null,
+    verified: false,
+    handoff: false,
+    blocked: isBlocked(contact, now),
+    actions: [],
+  };
+}
+
+/** Which web contact's history to show, without creating anything. */
+export async function findWebContactId(opts: { anonId: string | null; tenantId: string | null }): Promise<string | null> {
+  if (opts.tenantId && (await activeTenant(opts.tenantId))) {
+    const c = await prisma.contact.findUnique({ where: { webSessionId: webRenterKey(opts.tenantId) }, select: { id: true } });
+    return c?.id ?? null;
+  }
+  if (!opts.anonId) return null;
+  const c = await prisma.contact.findUnique({ where: { webSessionId: webAnonKey(opts.anonId) }, select: { id: true } });
+  return c?.id ?? null;
+}
+
+export async function currentConversation(contactId: string, type: ContactType) {
   const since = new Date(Date.now() - (type === ContactType.PROSPECT ? PROSPECT_TTL_MS : DAY_MS));
   const existing = await prisma.conversation.findFirst({
     where: { contactId, messages: { some: { createdAt: { gte: since } } } },
@@ -168,6 +271,7 @@ export async function saveMessage(
 export function identityHeader(ctx: ChatCtx): string {
   if (ctx.type === ContactType.MEMBER && ctx.verified) {
     return [
+      ctx.channel === Channel.WEB ? "They are chatting on the website." : "They are chatting on WhatsApp.",
       `The person is a VERIFIED RENTER.`,
       `Name: ${ctx.name}.`,
       `Account ID: ${ctx.accountCode}.`,
@@ -177,12 +281,14 @@ export function identityHeader(ctx: ChatCtx): string {
   }
   if (ctx.type === ContactType.MEMBER) {
     return [
+      ctx.channel === Channel.WEB ? "They are chatting on the website." : "They are chatting on WhatsApp.",
       `This number is registered to a renter but is NOT verified in this session.`,
       `Share no account data at all.`,
       `If they ask about rent, bills, utilities or guests, call send_verification_link and tell them to tap it.`,
     ].join(" ");
   }
   return [
+    ctx.channel === Channel.WEB ? "They are chatting on the website." : "They are chatting on WhatsApp.",
     `The person is a PROSPECT (not a renter).`,
     ctx.name ? `Name: ${ctx.name}.` : `You do not know their name yet — ask once, politely, then call remember_name.`,
     `They have no account, so never imply they owe anything.`,

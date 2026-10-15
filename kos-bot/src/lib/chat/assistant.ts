@@ -1,9 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { MessageRole } from "@prisma/client";
 import { env } from "@/env";
 import { log } from "@/lib/logger";
 import { wibNow } from "@/lib/money";
-import { identityHeader, loadHistory, saveMessage, type ChatCtx } from "./context";
+import { identityHeader, loadHistory, type ChatCtx } from "./context";
 import { OFF_TOPIC_REPLY, RULES } from "./rules";
 import { anthropicTools, toolsFor } from "./tools";
 import type { ChatAction } from "./actions";
@@ -29,7 +28,8 @@ export type AssistantResult = {
 /**
  * Runs one turn: history in, reply out, with the model calling our own
  * functions in between. Every tool runs server-side against ctx, so the model
- * decides WHAT to ask for but never WHOSE data it gets.
+ * decides WHAT to ask for but never WHOSE data it gets. The caller
+ * (pipeline.ts) filters and saves the reply.
  */
 export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
   const tools = toolsFor(ctx);
@@ -73,7 +73,6 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
 
     if (response.stop_reason === "refusal") {
       const text = OFF_TOPIC_REPLY;
-      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog, actions: ctx.actions });
       return { text, actions: ctx.actions, toolLog, usage };
     }
 
@@ -83,7 +82,6 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
 
     if (response.stop_reason !== "tool_use" || toolCalls.length === 0) {
       const text = textOf(response.content) || OFF_TOPIC_REPLY;
-      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog, actions: ctx.actions });
       return { text, actions: ctx.actions, toolLog, usage };
     }
 
@@ -113,7 +111,6 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
   }
 
   const fallback = "Maaf kak, ini perlu dicek dulu sama admin. Saya teruskan ya 🙏";
-  await saveMessage(ctx, MessageRole.ASSISTANT, withLog(fallback, toolLog), { toolLog, actions: ctx.actions });
   return { text: fallback, actions: ctx.actions, toolLog, usage };
 }
 
@@ -130,7 +127,7 @@ function textOf(content: Anthropic.ContentBlock[]): string {
  * turn knows what it already did. The rules tell the model never to echo it,
  * and it is stripped before anything is sent to the customer.
  */
-function withLog(text: string, toolLog: { tool: string; ok: boolean }[]): string {
+export function withLog(text: string, toolLog: { tool: string; ok: boolean }[]): string {
   if (!toolLog.length) return text;
   const trace = toolLog.map((t) => (t.ok ? t.tool : `${t.tool}:failed`)).join(", ");
   return `${text}\n[log: ${trace}]`;

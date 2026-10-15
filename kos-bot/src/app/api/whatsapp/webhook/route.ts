@@ -1,24 +1,15 @@
 import crypto from "node:crypto";
 import { after, NextRequest, NextResponse } from "next/server";
-import { MessageRole } from "@prisma/client";
 import { env } from "@/env";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
-import { LIMITS, overLimit } from "@/lib/rate-limit";
-import { markRead, sendCtaUrl, sendText } from "@/lib/whatsapp";
-import { resolveContext, saveMessage } from "@/lib/chat/context";
-import { runAssistant, estimateCostUsd, stripLog } from "@/lib/chat/assistant";
-import {
-  BLOCKED_REPLY,
-  guardReply,
-  INJECTION_STRIKES,
-  looksLikeInjection,
-  OFF_TOPIC_REPLY,
-  TEXT_ONLY_REPLY,
-} from "@/lib/chat/rules";
-import { maskPhone, safeEqual } from "@/lib/crypto";
-import { notifyOwner } from "@/lib/notify";
+import { safeEqual } from "@/lib/crypto";
 import { whatsappEnabled } from "@/lib/features";
+import { overLimit } from "@/lib/rate-limit";
+import { markRead, sendCtaUrl, sendText } from "@/lib/whatsapp";
+import { resolveWhatsAppContext } from "@/lib/chat/context";
+import { handleInbound } from "@/lib/chat/pipeline";
+import { TEXT_ONLY_REPLY } from "@/lib/chat/rules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,10 +18,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   if (!whatsappEnabled()) return new NextResponse("not found", { status: 404 });
   const params = req.nextUrl.searchParams;
-  if (
-    params.get("hub.mode") === "subscribe" &&
-    safeEqual(params.get("hub.verify_token") ?? "", env().WA_VERIFY_TOKEN)
-  ) {
+  if (params.get("hub.mode") === "subscribe" && safeEqual(params.get("hub.verify_token") ?? "", env().WA_VERIFY_TOKEN)) {
     return new NextResponse(params.get("hub.challenge") ?? "", { status: 200 });
   }
   return new NextResponse("forbidden", { status: 403 });
@@ -54,7 +42,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Meta may batch several messages (even from several people) into one call.
-  // Every one of them gets an answer. Delivery and read receipts carry none.
   const inbound = (body.entry ?? []).flatMap((entry) =>
     (entry.changes ?? []).flatMap((change) =>
       (change.value?.messages ?? []).map((message) => ({ message, value: change.value! }))
@@ -68,7 +55,6 @@ export async function POST(req: NextRequest) {
     } catch {
       continue;
     }
-
     // 3. Answer Meta inside its timeout, then do the slow work.
     after(() => handleMessage(message, value).catch((e) => log.error("handleMessage failed", { message: String(e) })));
   }
@@ -87,10 +73,7 @@ async function handleMessage(message: WaMessage, value: WaValue) {
   // Media is never accepted in chat — KTP photos belong in the secure form.
   if (message.type !== "text" && message.type !== "interactive") {
     if (["image", "document", "video"].includes(message.type)) {
-      await sendText(
-        waId,
-        "Demi keamanan, dokumen seperti KTP hanya diunggah lewat formulir aman ya kak, bukan lewat chat 🙏"
-      );
+      await sendText(waId, "Demi keamanan, dokumen seperti KTP hanya diunggah lewat formulir aman ya kak, bukan lewat chat 🙏");
     } else if (["audio", "sticker", "location", "contacts"].includes(message.type)) {
       if (!(await overLimit("wa-nontext", waId, 3, 3_600_000))) await sendText(waId, TEXT_ONLY_REPLY);
     }
@@ -100,89 +83,13 @@ async function handleMessage(message: WaMessage, value: WaValue) {
   const text = extractText(message);
   if (!text) return;
 
-  // 4. Cheap abuse limits before a single token is spent.
-  if (await overLimit("wa-min", waId, LIMITS.waPerMinute.limit, LIMITS.waPerMinute.windowMs)) {
-    log.warn("rate limited per minute", { waId: "[redacted]" });
-    return;
-  }
-  if (await overLimit("wa-day", waId, LIMITS.waPerDay.limit, LIMITS.waPerDay.windowMs)) {
-    await sendText(waId, "Maaf kak, chat hari ini sudah cukup banyak. Admin akan menghubungi kakak ya 🙏");
-    return;
-  }
+  const ctx = await resolveWhatsAppContext(waId, value?.contacts?.[0]?.profile?.name);
+  const reply = await handleInbound(ctx, text, { waMessageId: message.id });
+  if (!reply) return;
 
-  const ctx = await resolveContext(waId, value?.contacts?.[0]?.profile?.name);
-
-  // 5. A human is handling this chat — stay quiet.
-  if (ctx.handoff) {
-    await saveMessage(ctx, MessageRole.USER, text, { waMessageId: message.id });
-    return;
-  }
-
-  await saveMessage(ctx, MessageRole.USER, text, { waMessageId: message.id });
-
-  // 6. Obvious prompt injection never reaches the model.
-  if (looksLikeInjection(text)) {
-    log.warn("injection attempt blocked", { contactId: ctx.contactId });
-    await prisma.auditLog.create({
-      data: { actor: "bot", action: "blocked:injection", contactId: ctx.contactId },
-    });
-
-    // Repeat offenders are muted for a day, and the owner is told.
-    const strikes = await prisma.auditLog.count({
-      where: {
-        contactId: ctx.contactId,
-        action: "blocked:injection",
-        createdAt: { gte: new Date(Date.now() - 86_400_000) },
-      },
-    });
-    if (strikes >= INJECTION_STRIKES) {
-      await prisma.contact.update({
-        where: { id: ctx.contactId },
-        data: { blockedUntil: new Date(Date.now() + 86_400_000) },
-      });
-      await saveMessage(ctx, MessageRole.ASSISTANT, BLOCKED_REPLY);
-      // Owner first: a failed send to the abuser must not swallow the alert.
-      await notifyOwner({
-        dedupeKey: `blocked:${ctx.contactId}:${new Date().toISOString().slice(0, 10)}`,
-        title: "Nomor dijeda otomatis",
-        subject: `Chat dijeda 24 jam: ${ctx.name ?? maskPhone(ctx.phoneE164 ?? "")}`,
-        body: `Nomor ${ctx.phoneE164} mencoba memanipulasi asisten ${strikes} kali dalam 24 jam, jadi chatnya dijeda 24 jam.\n\nKalau ini salah paham, kosongkan blockedUntil untuk kontak ini.`,
-        short: `Nomor ${maskPhone(ctx.phoneE164 ?? "")} dijeda 24 jam karena mencoba memanipulasi asisten.`,
-      });
-      await sendText(waId, BLOCKED_REPLY);
-      return;
-    }
-
-    await saveMessage(ctx, MessageRole.ASSISTANT, OFF_TOPIC_REPLY);
-    await sendText(waId, OFF_TOPIC_REPLY);
-    return;
-  }
-
-  try {
-    const result = await runAssistant(ctx);
-    const guarded = guardReply(stripLog(result.text), env().APP_URL);
-    if (guarded.flagged.length) log.warn("reply filtered", { contactId: ctx.contactId, flagged: guarded.flagged });
-    await sendText(waId, guarded.text);
-    for (const action of result.actions) {
-      await sendCtaUrl(waId, action.label, action.label, `${env().APP_URL}${action.path}`);
-    }
-    await prisma.auditLog.create({
-      data: {
-        actor: "bot",
-        action: "reply",
-        contactId: ctx.contactId,
-        tenantId: ctx.tenantId,
-        meta: {
-          tools: result.toolLog.map((t) => t.tool),
-          tokens: result.usage,
-          costUsd: Number(estimateCostUsd(result.usage).toFixed(5)),
-          ...(guarded.flagged.length ? { filtered: guarded.flagged } : {}),
-        } as never,
-      },
-    });
-  } catch (error) {
-    log.error("assistant failed", { message: String(error) });
-    await sendText(waId, "Maaf kak, sistemnya lagi bermasalah sebentar. Coba kirim ulang pesannya ya 🙏");
+  await sendText(waId, reply.text);
+  for (const action of reply.actions) {
+    await sendCtaUrl(waId, action.label, action.label, `${env().APP_URL}${action.path}`);
   }
 }
 
