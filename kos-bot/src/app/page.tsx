@@ -37,7 +37,7 @@ export default async function HomePage() {
 
   const available = rooms.filter((r) => r.status === RoomStatus.AVAILABLE);
   const cheapest = rooms.reduce((min, r) => Math.min(min, r.monthlyPrice), Infinity);
-  const waLink = botChatLink("Halo, saya cari kos dekat kampus");
+  const waLink = botChatLink("Halo, saya cari kos dekat kampus") ?? "/?chat=1";
 
   return (
     <main>

@@ -7,6 +7,7 @@ import { niceDate, rp } from "./money";
 import { sendTemplateWithUrlButton, waIdFromE164 } from "./whatsapp";
 import { deleteObject } from "./storage";
 import { retryOwnerAlerts } from "./notify";
+import { whatsappEnabled } from "./features";
 
 /**
  * Hourly. Enforces the retention promise:
@@ -125,17 +126,19 @@ async function issueUpcomingRent(dueDay: number): Promise<number> {
       period,
     });
 
-    try {
-      await ensurePaymentUrl(invoice.id); // warm the gateway page before we link to it
-      await sendTemplateWithUrlButton(
-        waIdFromE164(lease.tenant.phoneE164),
-        "rent_due_reminder",
-        "id",
-        [lease.tenant.fullName.split(" ")[0], lease.room.code, rp(lease.monthlyRent), niceDate(target)],
-        invoice.code
-      );
-    } catch (e) {
-      log.warn("rent reminder failed", { invoice: invoice.code, message: String(e) });
+    if (whatsappEnabled()) {
+      try {
+        await ensurePaymentUrl(invoice.id); // warm the gateway page before we link to it
+        await sendTemplateWithUrlButton(
+          waIdFromE164(lease.tenant.phoneE164),
+          "rent_due_reminder",
+          "id",
+          [lease.tenant.fullName.split(" ")[0], lease.room.code, rp(lease.monthlyRent), niceDate(target)],
+          invoice.code
+        );
+      } catch (e) {
+        log.warn("rent reminder failed", { invoice: invoice.code, message: String(e) });
+      }
     }
     created++;
   }
@@ -144,6 +147,7 @@ async function issueUpcomingRent(dueDay: number): Promise<number> {
 
 /** Nudges overdue invoices once every three days, never more. */
 async function remindUnpaid(dueDay: number, today: Date): Promise<number> {
+  if (!whatsappEnabled()) return 0;
   const overdue = await prisma.invoice.findMany({
     where: {
       status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL] },

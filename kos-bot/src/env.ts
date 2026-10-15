@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const optional = z.string().optional().default("");
+const optionalE164 = z
+  .union([z.literal(""), z.string().regex(/^\+\d{8,15}$/, "must look like +628…")])
+  .optional()
+  .default("");
+
 /** Fail fast at boot rather than halfway through a customer conversation. */
 const schema = z.object({
   APP_URL: z.string().url(),
@@ -11,33 +17,35 @@ const schema = z.object({
   ADMIN_PASSWORD: z.string().min(8),
 
   ANTHROPIC_API_KEY: z.string().min(1),
-  CLAUDE_MODEL: z.string().default("claude-haiku-4-5-20251001"),
+  CLAUDE_MODEL: z.string().default("claude-haiku-5-5"),
 
+  // WhatsApp — optional. Switched on only when every value is set (lib/features.ts).
   WA_GRAPH_VERSION: z.string().default("v21.0"),
-  WA_PHONE_NUMBER_ID: z.string().min(1),
+  WA_PHONE_NUMBER_ID: optional,
+  WA_BUSINESS_ACCOUNT_ID: optional,
+  WA_ACCESS_TOKEN: optional,
+  WA_APP_SECRET: optional,
+  WA_VERIFY_TOKEN: optional,
   /** The assistant's own WhatsApp number, for wa.me links. Never the owner's personal number. */
-  WA_BOT_PHONE_E164: z.string().regex(/^\+\d{8,15}$/, "WA_BOT_PHONE_E164 must look like +628…"),
-  WA_BUSINESS_ACCOUNT_ID: z.string().optional().default(""),
-  WA_ACCESS_TOKEN: z.string().min(1),
-  WA_APP_SECRET: z.string().min(1),
-  WA_VERIFY_TOKEN: z.string().min(1),
+  WA_BOT_PHONE_E164: optionalE164,
+  OWNER_PHONE_E164: optionalE164,
 
-  XENDIT_SECRET_KEY: z.string().min(1),
-  XENDIT_WEBHOOK_TOKEN: z.string().min(1),
+  // Xendit — optional in development (fake payments), required in production.
+  XENDIT_SECRET_KEY: optional,
+  XENDIT_WEBHOOK_TOKEN: optional,
 
   OWNER_NAME: z.string().default("Pemilik kos"),
   OWNER_EMAIL: z.string().email(),
-  OWNER_PHONE_E164: z.string().regex(/^\+\d{8,15}$/),
-  RESEND_API_KEY: z.string().optional().default(""),
+  RESEND_API_KEY: optional,
   EMAIL_FROM: z.string().default("Kos <noreply@example.com>"),
 
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("./storage"),
-  S3_ENDPOINT: z.string().optional().default(""),
+  S3_ENDPOINT: optional,
   S3_REGION: z.string().optional().default("auto"),
-  S3_BUCKET: z.string().optional().default(""),
-  S3_ACCESS_KEY_ID: z.string().optional().default(""),
-  S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
+  S3_BUCKET: optional,
+  S3_ACCESS_KEY_ID: optional,
+  S3_SECRET_ACCESS_KEY: optional,
 });
 
 export type Env = z.infer<typeof schema>;

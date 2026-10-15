@@ -12,7 +12,11 @@ const anthropic = () => (client ??= new Anthropic({ apiKey: env().ANTHROPIC_API_
 
 /** A tool loop that cannot run away: at most this many round trips per message. */
 const MAX_TOOL_ROUNDS = 5;
-const MAX_OUTPUT_TOKENS = 600;
+/**
+ * Haiku 5.5 thinks by default and thinking counts toward max_tokens, so this
+ * leaves room for it. Reply length is kept short by the rules, not this cap.
+ */
+const MAX_OUTPUT_TOKENS = 2000;
 
 export type AssistantResult = {
   text: string;
@@ -44,6 +48,8 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
     const response = await anthropic().messages.create({
       model: env().CLAUDE_MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
+      // Chat replies are short; low effort keeps thinking (and cost) small.
+      output_config: { effort: "low" },
       system: [
         // Static block first and marked cacheable: identical bytes on every
         // request for every user, so this is a cache read after the first call.
@@ -62,6 +68,12 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
     usage.output += response.usage.output_tokens ?? 0;
     usage.cacheRead += response.usage.cache_read_input_tokens ?? 0;
     usage.cacheWrite += response.usage.cache_creation_input_tokens ?? 0;
+
+    if (response.stop_reason === "refusal") {
+      const text = OFF_TOPIC_REPLY;
+      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog });
+      return { text, toolLog, usage };
+    }
 
     const toolCalls = response.content.filter(
       (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
@@ -128,9 +140,13 @@ function zeroUsage() {
   return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 }
 
-/** Rough running cost in USD, written to the audit log so you can watch spend. */
+/**
+ * Rough running cost in USD, written to the audit log so you can watch spend.
+ * claude-haiku-5-5, prompts up to 100K tokens: $0.10 input / $0.50 output per
+ * million tokens; cache writes 1.25× input, cache reads 0.1× input.
+ */
 export function estimateCostUsd(u: AssistantResult["usage"]): number {
-  const IN = 1 / 1_000_000;
-  const OUT = 5 / 1_000_000;
+  const IN = 0.1 / 1_000_000;
+  const OUT = 0.5 / 1_000_000;
   return u.input * IN + u.cacheWrite * IN * 1.25 + u.cacheRead * IN * 0.1 + u.output * OUT;
 }

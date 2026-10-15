@@ -1,13 +1,12 @@
 import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { botChatLink } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
 
 /**
  * Where Xendit sends the payer after checkout. The last step of the flow:
- * it points them back to the WhatsApp chat, where the confirmation arrives.
+ * it points them back to the chat, where the confirmation arrives.
  * The status shown comes from our own database, never from the URL.
  */
 export default async function PaidPage({ params }: { params: Promise<{ code: string }> }) {
@@ -17,7 +16,7 @@ export default async function PaidPage({ params }: { params: Promise<{ code: str
     : null;
 
   const paid = invoice?.status === InvoiceStatus.PAID;
-  const chatLink = botChatLink(invoice ? `Halo, saya sudah bayar ${invoice.code}` : "Halo");
+  const chatLink = "/?chat=1";
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20 }}>
@@ -35,11 +34,11 @@ export default async function PaidPage({ params }: { params: Promise<{ code: str
         <h1 style={{ fontSize: 20, marginBottom: 8 }}>{paid ? "Pembayaran diterima" : "Pembayaran sedang diproses"}</h1>
         <p className="muted" style={{ marginBottom: 22 }}>
           {paid
-            ? `Terima kasih kak. Konfirmasi untuk ${invoice!.code} sudah kami kirim lewat WhatsApp.`
-            : "Biasanya hanya beberapa detik. Konfirmasi akan masuk ke WhatsApp kakak begitu pembayaran tercatat."}
+            ? `Terima kasih kak. Konfirmasi untuk ${invoice!.code} sudah kami kirim ke chat.`
+            : "Biasanya hanya beberapa detik. Konfirmasi akan masuk ke chat begitu pembayaran tercatat."}
         </p>
         <a className="btn btn-pri" href={chatLink} style={{ width: "100%" }}>
-          Kembali ke chat WhatsApp
+          Kembali ke chat
         </a>
       </div>
     </main>

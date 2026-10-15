@@ -145,8 +145,10 @@ export async function markRead(messageId: string) {
 /** WhatsApp wants bare digits, our DB stores +62… */
 export const waIdFromE164 = (e164: string) => e164.replace(/\D/g, "");
 
-/** A wa.me link that opens a chat with the assistant, optionally pre-filled. */
-export function botChatLink(text?: string) {
-  const base = `https://wa.me/${waIdFromE164(env().WA_BOT_PHONE_E164)}`;
+/** A wa.me link to the assistant, or null while no WhatsApp number is set up. */
+export function botChatLink(text?: string): string | null {
+  const number = env().WA_BOT_PHONE_E164;
+  if (!number) return null;
+  const base = `https://wa.me/${waIdFromE164(number)}`;
   return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }

@@ -18,12 +18,14 @@ import {
 } from "@/lib/chat/rules";
 import { maskPhone, safeEqual } from "@/lib/crypto";
 import { notifyOwner } from "@/lib/notify";
+import { whatsappEnabled } from "@/lib/features";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Meta calls this once when you add the webhook URL. */
 export async function GET(req: NextRequest) {
+  if (!whatsappEnabled()) return new NextResponse("not found", { status: 404 });
   const params = req.nextUrl.searchParams;
   if (
     params.get("hub.mode") === "subscribe" &&
@@ -35,6 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!whatsappEnabled()) return new NextResponse("not found", { status: 404 });
   const raw = await req.text();
 
   // 1. Only Meta may call this. Verified before anything is parsed.
