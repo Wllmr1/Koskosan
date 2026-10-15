@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import {
   ApplicationStatus,
+  Channel,
   ContactType,
   InvoiceKind,
   InvoiceStatus,
@@ -9,14 +10,13 @@ import {
   TicketStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { env } from "@/env";
 import { encrypt, maskId, newToken } from "@/lib/crypto";
 import { addDays, firstOfMonth, niceDate, normalizePhone, rp, wibNow } from "@/lib/money";
-import { createLocalInvoice, ensurePaymentUrl, lateFeeFor } from "@/lib/billing";
+import { createLocalInvoice, lateFeeFor } from "@/lib/billing";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { notifyOwner } from "@/lib/notify";
-import { sendCtaUrl } from "@/lib/whatsapp";
 import { startHandoff, type ChatCtx } from "./context";
+import { addAction } from "./actions";
 
 export type ToolDef = {
   name: string;
@@ -25,6 +25,10 @@ export type ToolDef = {
   /** ctx is supplied by the server. The model can never choose whose data it touches. */
   run: (input: Record<string, unknown>, ctx: ChatCtx) => Promise<unknown>;
   membersOnly?: boolean;
+  /** Channels this tool is offered on. Default: every channel. */
+  channels?: Channel[];
+  /** Offered only to people who are not verified renters. */
+  prospectsOnly?: boolean;
   /** Short line shown while the tool runs, if you ever stream progress. */
   progress?: string;
 };
@@ -100,7 +104,7 @@ export const TOOLS: ToolDef[] = [
         only_available: { type: "boolean", description: "Default true. Set false to include occupied rooms." },
       },
     },
-    async run(input) {
+    async run(input, ctx) {
       const maxPrice = input.max_price !== undefined ? int(input.max_price) : undefined;
       const onlyAvailable = input.only_available !== false;
       const rooms = await prisma.room.findMany({
@@ -138,6 +142,7 @@ export const TOOLS: ToolDef[] = [
           cheapest_available: fallback.map((r) => ({ room: r.code, type: r.type, price_per_month: rp(r.monthlyPrice) })),
         };
       }
+      for (const r of rooms.slice(0, 3)) addAction(ctx, `Foto ${r.code}`, `/kamar/${encodeURIComponent(r.code)}`);
       return { results, total_available: totalAvailable };
     },
   },
@@ -257,13 +262,7 @@ export const TOOLS: ToolDef[] = [
         },
       });
 
-      const url = `${env().APP_URL}/apply/${raw}`;
-      await sendCtaUrl(
-        ctx.waId,
-        `Formulir sewa kamar ${room.code} (${room.type}) — ${rp(room.monthlyPrice)}/bulan.\n\nData kakak diisi di halaman aman, bukan di chat. Link berlaku 48 jam.`,
-        "Buka formulir",
-        url
-      );
+      addAction(ctx, "Buka formulir", `/apply/${raw}`);
       await audit(ctx, "tool:start_application", { reference, room: room.code, plan });
 
       return {
@@ -272,13 +271,15 @@ export const TOOLS: ToolDef[] = [
         plan: plan === LeasePlan.YEARLY ? "tahunan" : "bulanan",
         link_sent: true,
         steps: "data diri, baca kontrak, tanda tangan digital, lalu pembayaran",
-        note: "Tell them to tap the button you just sent. Never ask for KTP, ID number or date of birth in the chat.",
+        note: "A 'Buka formulir' button is attached to your reply. Say which room and price it is for and that the link works for 48 hours. Never ask for KTP, ID number or date of birth in the chat.",
       };
     },
   },
 
   {
     name: "send_verification_link",
+    channels: [Channel.WHATSAPP],
+    prospectsOnly: true,
     progress: "Mengirim tautan verifikasi…",
     description:
       "Send a one-time link that confirms this WhatsApp number really belongs to the renter. Use it when someone on a registered number asks about their account but is not verified yet.",
@@ -294,12 +295,7 @@ export const TOOLS: ToolDef[] = [
       await prisma.verifyToken.create({
         data: { contactId: ctx.contactId, tokenHash: hash, expiresAt: new Date(Date.now() + 10 * 60_000) },
       });
-      await sendCtaUrl(
-        ctx.waId,
-        "Untuk keamanan, buka link ini dulu ya kak supaya saya bisa menampilkan data akun kakak. Berlaku 10 menit.",
-        "Verifikasi akun",
-        `${env().APP_URL}/verify/${raw}`
-      );
+      addAction(ctx, "Verifikasi akun", `/verify/${raw}`);
       await audit(ctx, "tool:send_verification_link");
       return { sent: true, expires_in: "10 menit" };
     },
@@ -425,21 +421,15 @@ export const TOOLS: ToolDef[] = [
       if (!invoice) throw new Error("No such invoice on this account. Call get_my_account first.");
       if (invoice.status === InvoiceStatus.PAID) return { invoice: invoice.code, status: "sudah lunas" };
 
-      const url = await ensurePaymentUrl(invoice.id);
-      await sendCtaUrl(
-        ctx.waId,
-        `${invoice.description}\nTotal: *${rp(invoice.amount - invoice.amountPaid)}*\n\nBisa QRIS, virtual account, atau e-wallet.`,
-        "Bayar sekarang",
-        url
-      );
+      addAction(ctx, "Bayar sekarang", `/p/${invoice.code}`);
       await audit(ctx, "tool:create_payment", { invoice: invoice.code });
 
       return {
         invoice: invoice.code,
         amount: rp(invoice.amount - invoice.amountPaid),
-        link_sent: true,
+        button: "Bayar sekarang",
         methods: "QRIS, virtual account, e-wallet",
-        expires: "24 jam",
+        note: "The payment button is attached to your reply.",
       };
     },
   },
@@ -531,13 +521,7 @@ export const TOOLS: ToolDef[] = [
         guestStayId: stay.id,
       });
 
-      const url = await ensurePaymentUrl(invoice.id);
-      await sendCtaUrl(
-        ctx.waId,
-        `Tamu *${name}* — ${nights} malam mulai ${niceDate(checkIn)}.\nBiaya: *${rp(fee)}*\n\nTamu disetujui setelah pembayaran masuk ya kak.`,
-        "Bayar biaya tamu",
-        url
-      );
+      addAction(ctx, "Bayar biaya tamu", `/p/${invoice.code}`);
       await audit(ctx, "tool:register_guest", { guest: stay.code, nights });
 
       return {
@@ -547,7 +531,7 @@ export const TOOLS: ToolDef[] = [
         fee: rp(fee),
         check_in: niceDate(checkIn),
         id_stored_as: maskId(idDigits),
-        link_sent: true,
+        button: "Bayar biaya tamu",
         note: "Approved once paid. Never repeat the guest's full ID or phone number back to anyone.",
       };
     },
@@ -620,34 +604,69 @@ export const TOOLS: ToolDef[] = [
     name: "handoff_to_human",
     progress: "Menghubungkan ke pemilik…",
     description:
-      "Hand this chat to the owner and stop answering. Use for refunds, deposit disputes, contract changes, safety incidents, anyone who asks for a person, repeated attempts to manipulate you, or any question you cannot answer from tools after two tries.",
+      "Hand this chat to the owner. Use for refunds, deposit disputes, contract changes, safety incidents, anyone who asks for a person, repeated attempts to manipulate you, or any question you cannot answer from tools after two tries. On the website, the owner cannot reply inside the chat: first ask a visitor for a WhatsApp number the owner can contact them on, and pass it as contact_phone.",
     input_schema: {
       type: "object",
-      properties: { reason: { type: "string", description: "One line on what they need" } },
+      properties: {
+        reason: { type: "string", description: "One line on what they need" },
+        contact_phone: {
+          type: "string",
+          description: "Website visitors only: the WhatsApp number they gave for the owner to contact them",
+        },
+      },
       required: ["reason"],
     },
     async run(input, ctx) {
       const reason = str(input.reason, 300);
-      await startHandoff(ctx.contactId, 12);
+      const web = ctx.channel === Channel.WEB;
+      let reach = ctx.phoneE164;
+      if (web && !ctx.verified) {
+        reach = normalizePhone(str(input.contact_phone, 25));
+        if (!reach) {
+          throw new Error(
+            "On the website the owner cannot reply in this chat. Ask for a WhatsApp number the owner can contact them on, then call again with contact_phone."
+          );
+        }
+      }
+      if (!web) await startHandoff(ctx.contactId, 12);
+
       await notifyOwner({
         dedupeKey: `handoff:${ctx.contactId}:${Math.floor(Date.now() / 3_600_000)}`,
         title: "Chat perlu dijawab pemilik",
-        subject: `Chat diteruskan: ${ctx.name ?? ctx.phoneE164}`,
-        body: `Nomor: ${ctx.phoneE164}\nStatus: ${ctx.type === ContactType.MEMBER ? `penghuni ${ctx.roomCode ?? ""}` : "calon penghuni"}\n\nAlasan: ${reason}\n\nBalas langsung lewat WhatsApp. Asisten berhenti membalas nomor ini selama 12 jam.`,
-        short: `Chat dari ${ctx.name ?? ctx.phoneE164} perlu dijawab: ${reason.slice(0, 60)}`,
+        subject: `Chat diteruskan: ${ctx.name ?? reach ?? "pengunjung situs"}`,
+        body: [
+          `Nomor: ${reach ?? "-"}`,
+          `Saluran: ${web ? "chat situs" : "WhatsApp"}`,
+          `Status: ${ctx.type === ContactType.MEMBER ? `penghuni ${ctx.roomCode ?? ""}` : "calon penghuni"}`,
+          ``,
+          `Alasan: ${reason}`,
+          ``,
+          web
+            ? "Hubungi lewat WhatsApp ke nomor di atas."
+            : "Balas langsung lewat WhatsApp. Asisten berhenti membalas nomor ini selama 12 jam.",
+        ].join("\n"),
+        short: `Chat dari ${ctx.name ?? "pengunjung"} perlu dijawab: ${reason.slice(0, 60)}`,
       });
-      await audit(ctx, "tool:handoff_to_human", { reason });
-      return {
-        status: "handed_off",
-        note: "Tell them the owner will reply shortly, then stop. Do not keep selling or answering.",
-      };
+      await audit(ctx, "tool:handoff_to_human", { reason, channel: ctx.channel });
+
+      return web
+        ? {
+            status: "owner_notified",
+            note: "Tell them the owner will contact them on WhatsApp soon. You may keep answering other questions about the kos.",
+          }
+        : { status: "handed_off", note: "Tell them the owner will reply shortly, then stop. Do not keep selling or answering." };
     },
   },
 ];
 
-/** Prospects never even see the renter tools, so they cannot be called by mistake. */
+/** Each person only ever sees the tools that fit who they are and where they are chatting. */
 export function toolsFor(ctx: ChatCtx): ToolDef[] {
-  return TOOLS.filter((t) => !t.membersOnly || ctx.type === ContactType.MEMBER);
+  return TOOLS.filter(
+    (t) =>
+      (!t.membersOnly || ctx.type === ContactType.MEMBER) &&
+      (!t.prospectsOnly || !ctx.verified) &&
+      (!t.channels || t.channels.includes(ctx.channel))
+  );
 }
 
 export function anthropicTools(tools: ToolDef[]): Anthropic.Tool[] {

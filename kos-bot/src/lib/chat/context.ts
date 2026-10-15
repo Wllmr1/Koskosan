@@ -1,5 +1,6 @@
-import { ContactType, MessageRole } from "@prisma/client";
+import { Channel, ContactType, MessageRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { ChatAction } from "./actions";
 
 const DAY_MS = 86_400_000;
 
@@ -18,8 +19,11 @@ const HISTORY_LIMIT = 20;
 export type ChatCtx = {
   contactId: string;
   conversationId: string;
-  waId: string;
-  phoneE164: string;
+  channel: Channel;
+  /** WhatsApp only */
+  waId: string | null;
+  /** WhatsApp number, or the renter's phone on the website; null for anonymous visitors */
+  phoneE164: string | null;
   name: string | null;
   type: ContactType;
   tenantId: string | null;
@@ -27,8 +31,10 @@ export type ChatCtx = {
   roomCode: string | null;
   verified: boolean;
   handoff: boolean;
-  /** muted for repeated abuse — the bot ignores this number until then */
+  /** muted for repeated abuse — the bot ignores this contact until then */
   blocked: boolean;
+  /** buttons the tools attached during this turn */
+  actions: ChatAction[];
 };
 
 /** Called for every inbound message. Creates or refreshes the Contact. */
@@ -55,6 +61,7 @@ export async function resolveContext(waId: string, profileName?: string): Promis
   const contact = await prisma.contact.upsert({
     where: { waId: digits },
     create: {
+      channel: Channel.WHATSAPP,
       waId: digits,
       phoneE164,
       displayName: tenant?.fullName ?? sanitizeName(profileName) ?? null,
@@ -82,6 +89,7 @@ export async function resolveContext(waId: string, profileName?: string): Promis
   return {
     contactId: contact.id,
     conversationId: conversation.id,
+    channel: Channel.WHATSAPP,
     waId: digits,
     phoneE164,
     name: contact.displayName,
@@ -92,6 +100,7 @@ export async function resolveContext(waId: string, profileName?: string): Promis
     verified,
     handoff: !!contact.handoffUntil && contact.handoffUntil > now,
     blocked: !!contact.blockedUntil && contact.blockedUntil > now,
+    actions: [],
   };
 }
 
@@ -135,7 +144,7 @@ export async function saveMessage(
   ctx: ChatCtx,
   role: MessageRole,
   content: string,
-  extra: { waMessageId?: string; toolLog?: unknown } = {}
+  extra: { waMessageId?: string; toolLog?: unknown; actions?: ChatAction[] } = {}
 ) {
   const ttl = ctx.type === ContactType.PROSPECT ? PROSPECT_TTL_MS : MEMBER_TTL_MS;
   return prisma.message.create({
@@ -145,6 +154,7 @@ export async function saveMessage(
       content: content.slice(0, 4000),
       waMessageId: extra.waMessageId,
       toolLog: (extra.toolLog ?? undefined) as never,
+      actions: extra.actions?.length ? (extra.actions as never) : undefined,
       expiresAt: new Date(Date.now() + ttl),
     },
   });

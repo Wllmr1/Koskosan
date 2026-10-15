@@ -6,6 +6,7 @@ import { wibNow } from "@/lib/money";
 import { identityHeader, loadHistory, saveMessage, type ChatCtx } from "./context";
 import { OFF_TOPIC_REPLY, RULES } from "./rules";
 import { anthropicTools, toolsFor } from "./tools";
+import type { ChatAction } from "./actions";
 
 let client: Anthropic | null = null;
 const anthropic = () => (client ??= new Anthropic({ apiKey: env().ANTHROPIC_API_KEY }));
@@ -20,6 +21,7 @@ const MAX_OUTPUT_TOKENS = 2000;
 
 export type AssistantResult = {
   text: string;
+  actions: ChatAction[];
   toolLog: { tool: string; ok: boolean }[];
   usage: { input: number; output: number; cacheRead: number; cacheWrite: number };
 };
@@ -37,7 +39,7 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
   }));
 
   if (!messages.length) {
-    return { text: OFF_TOPIC_REPLY, toolLog: [], usage: zeroUsage() };
+    return { text: OFF_TOPIC_REPLY, actions: ctx.actions, toolLog: [], usage: zeroUsage() };
   }
 
   const toolLog: { tool: string; ok: boolean }[] = [];
@@ -71,8 +73,8 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
 
     if (response.stop_reason === "refusal") {
       const text = OFF_TOPIC_REPLY;
-      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog });
-      return { text, toolLog, usage };
+      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog, actions: ctx.actions });
+      return { text, actions: ctx.actions, toolLog, usage };
     }
 
     const toolCalls = response.content.filter(
@@ -81,8 +83,8 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
 
     if (response.stop_reason !== "tool_use" || toolCalls.length === 0) {
       const text = textOf(response.content) || OFF_TOPIC_REPLY;
-      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog });
-      return { text, toolLog, usage };
+      await saveMessage(ctx, MessageRole.ASSISTANT, withLog(text, toolLog), { toolLog, actions: ctx.actions });
+      return { text, actions: ctx.actions, toolLog, usage };
     }
 
     messages.push({ role: "assistant", content: response.content });
@@ -111,8 +113,8 @@ export async function runAssistant(ctx: ChatCtx): Promise<AssistantResult> {
   }
 
   const fallback = "Maaf kak, ini perlu dicek dulu sama admin. Saya teruskan ya 🙏";
-  await saveMessage(ctx, MessageRole.ASSISTANT, withLog(fallback, toolLog), { toolLog });
-  return { text: fallback, toolLog, usage };
+  await saveMessage(ctx, MessageRole.ASSISTANT, withLog(fallback, toolLog), { toolLog, actions: ctx.actions });
+  return { text: fallback, actions: ctx.actions, toolLog, usage };
 }
 
 function textOf(content: Anthropic.ContentBlock[]): string {

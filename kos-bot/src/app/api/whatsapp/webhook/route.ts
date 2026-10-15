@@ -5,7 +5,7 @@ import { env } from "@/env";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
-import { markRead, sendText } from "@/lib/whatsapp";
+import { markRead, sendCtaUrl, sendText } from "@/lib/whatsapp";
 import { resolveContext, saveMessage } from "@/lib/chat/context";
 import { runAssistant, estimateCostUsd, stripLog } from "@/lib/chat/assistant";
 import {
@@ -145,9 +145,9 @@ async function handleMessage(message: WaMessage, value: WaValue) {
       await notifyOwner({
         dedupeKey: `blocked:${ctx.contactId}:${new Date().toISOString().slice(0, 10)}`,
         title: "Nomor dijeda otomatis",
-        subject: `Chat dijeda 24 jam: ${ctx.name ?? maskPhone(ctx.phoneE164)}`,
+        subject: `Chat dijeda 24 jam: ${ctx.name ?? maskPhone(ctx.phoneE164 ?? "")}`,
         body: `Nomor ${ctx.phoneE164} mencoba memanipulasi asisten ${strikes} kali dalam 24 jam, jadi chatnya dijeda 24 jam.\n\nKalau ini salah paham, kosongkan blockedUntil untuk kontak ini.`,
-        short: `Nomor ${maskPhone(ctx.phoneE164)} dijeda 24 jam karena mencoba memanipulasi asisten.`,
+        short: `Nomor ${maskPhone(ctx.phoneE164 ?? "")} dijeda 24 jam karena mencoba memanipulasi asisten.`,
       });
       await sendText(waId, BLOCKED_REPLY);
       return;
@@ -163,6 +163,9 @@ async function handleMessage(message: WaMessage, value: WaValue) {
     const guarded = guardReply(stripLog(result.text), env().APP_URL);
     if (guarded.flagged.length) log.warn("reply filtered", { contactId: ctx.contactId, flagged: guarded.flagged });
     await sendText(waId, guarded.text);
+    for (const action of result.actions) {
+      await sendCtaUrl(waId, action.label, action.label, `${env().APP_URL}${action.path}`);
+    }
     await prisma.auditLog.create({
       data: {
         actor: "bot",
