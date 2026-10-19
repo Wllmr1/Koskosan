@@ -59,6 +59,30 @@ database later. The website and the assistant both read these same rows.
 
 ---
 
+## 2a. Develop on the website first (no WhatsApp, no Xendit)
+
+Only these are needed: Postgres, the three generated secrets, `ADMIN_PASSWORD`,
+`OWNER_EMAIL` and `ANTHROPIC_API_KEY`. Leave every `WA_*`, `OWNER_PHONE_E164`,
+`XENDIT_*` and `RESEND_API_KEY` value blank.
+
+- The chat bubble on every page is the assistant (Claude, model `claude-haiku-5-5`).
+- Without Xendit, every "Bayar" button opens `/dev/pay/<invoice>` with
+  **Simulasikan bayar** — it runs the same code a real payment does. This page
+  does not exist in production, and production refuses to start without Xendit.
+- Owner alerts appear on the dashboard; they are also emailed once
+  `RESEND_API_KEY` is set and sent on WhatsApp once WhatsApp is connected.
+- All property data and photos: **/admin → Data kos**. Chats: **/admin → Percakapan**.
+- Renters log in at `/masuk` with the phone number and password they chose on
+  the sign-up form. "Lupa password": dashboard → Penghuni aktif → *Buat link atur password*.
+
+Tests use a separate database (`TEST_DATABASE_URL`) so they never touch your real data: `npm test`.
+
+**Adding WhatsApp later:** fill in every `WA_*` value plus `WA_BOT_PHONE_E164`
+and `OWNER_PHONE_E164`, run `npm run wa:templates`, and point Meta's webhook at
+`/api/whatsapp/webhook`. The same assistant, rules and guardrails answer there.
+
+---
+
 ## 3. Connect WhatsApp
 
 1. In the Meta app dashboard, add the **WhatsApp** product and copy:
