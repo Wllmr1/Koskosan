@@ -2,6 +2,7 @@ import { InvoiceKind, InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { createInvoice } from "./xendit";
 import { env } from "@/env";
+import { fakePaymentsAllowed, paymentsLive } from "./features";
 
 /** Human-readable invoice codes: INV-RENT-2610-0042 */
 export async function nextInvoiceCode(prefix: string): Promise<string> {
@@ -22,6 +23,12 @@ export async function ensurePaymentUrl(invoiceId: string): Promise<string> {
 
   const remaining = invoice.amount - invoice.amountPaid;
   if (remaining <= 0) throw new Error("Nothing left to pay on this invoice.");
+
+  // Development without Xendit: the built-in test page, never in production.
+  if (!paymentsLive()) {
+    if (!fakePaymentsAllowed()) throw new Error("Payments are not configured.");
+    return `${env().APP_URL}/dev/pay/${invoice.code}`;
+  }
 
   const gateway = await createInvoice({
     externalId: invoice.code,
