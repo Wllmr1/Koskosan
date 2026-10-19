@@ -2,6 +2,7 @@ import { RoomStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { niceDate, rp } from "@/lib/money";
 import { botChatLink } from "@/lib/whatsapp";
+import OpenChatButton from "@/components/OpenChatButton";
 
 export const revalidate = 60;
 
@@ -37,7 +38,7 @@ export default async function HomePage() {
 
   const available = rooms.filter((r) => r.status === RoomStatus.AVAILABLE);
   const cheapest = rooms.reduce((min, r) => Math.min(min, r.monthlyPrice), Infinity);
-  const waLink = botChatLink("Halo, saya cari kos dekat kampus") ?? "/?chat=1";
+  const waLink = botChatLink("Halo, saya cari kos dekat kampus");
 
   return (
     <main>
@@ -53,9 +54,10 @@ export default async function HomePage() {
             <a href="#biaya" style={{ color: "inherit", textDecoration: "none" }}>Biaya</a>
             <a href="#faq" style={{ color: "inherit", textDecoration: "none" }}>FAQ</a>
           </nav>
-          <a className="btn btn-pri" href={waLink} style={{ marginLeft: "auto" }}>
-            Chat di WhatsApp
-          </a>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {waLink && <a className="btn" href={waLink}>Chat di WhatsApp</a>}
+            <OpenChatButton>Chat sekarang</OpenChatButton>
+          </div>
         </div>
       </header>
 
@@ -63,9 +65,9 @@ export default async function HomePage() {
         <section className="card" style={{ padding: "34px 30px 28px", marginBottom: 20 }}>
           <h1 style={{ fontSize: "clamp(30px,4.5vw,46px)", maxWidth: "16ch" }}>{settings.tagline}</h1>
           <p className="muted" style={{ maxWidth: "58ch", margin: "14px 0 20px" }}>
-            {settings.address}. Tanya apa saja ke asisten WhatsApp kami, 24 jam, langsung dibalas.
+            {settings.address}. Tanya apa saja ke asisten kami, 24 jam, langsung dibalas.
           </p>
-          <a className="btn btn-pri" href={waLink}>Tanya kamar kosong</a>
+          <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya kamar kosong</OpenChatButton>
 
           <div
             style={{
