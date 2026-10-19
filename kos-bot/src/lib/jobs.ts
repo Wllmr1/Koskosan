@@ -1,7 +1,7 @@
 import { ContactType, InvoiceKind, InvoiceStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { log } from "./logger";
-import { expireStaleApplications } from "./application";
+import { expireStaleApplications, scrubClosedApplications } from "./application";
 import { createLocalInvoice, ensurePaymentUrl } from "./billing";
 import { niceDate, rp } from "./money";
 import { sendTemplateWithUrlButton, waIdFromE164 } from "./whatsapp";
@@ -32,6 +32,7 @@ export async function purgeChatMemory() {
     where: { expiresAt: { lt: new Date(now.getTime() - 86_400_000) } },
   });
   const applications = await expireStaleApplications();
+  const applicationsScrubbed = await scrubClosedApplications();
 
   // Empty conversations left behind by message expiry
   const emptyConvos = await prisma.conversation.deleteMany({ where: { messages: { none: {} } } });
@@ -50,6 +51,7 @@ export async function purgeChatMemory() {
     counters: counters.count,
     tokens: tokens.count,
     applicationsExpired: applications,
+    applicationsScrubbed,
     conversations: emptyConvos.count,
   };
 

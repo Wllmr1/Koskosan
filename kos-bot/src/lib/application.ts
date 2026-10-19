@@ -2,6 +2,7 @@ import { ApplicationStatus, LeasePlan, RoomStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { sha256 } from "./crypto";
 import { addMonths } from "./money";
+import { deleteObject } from "./storage";
 import type { ContractData } from "./contract";
 
 export const APPLICATION_TTL_MS = 48 * 3_600_000;
@@ -114,4 +115,45 @@ export async function expireStaleApplications() {
     }),
   ]);
   return stale.length;
+}
+
+/**
+ * An application that expired or was cancelled never became a contract, so
+ * nothing justifies keeping the person's data: KTP number and photo, date of
+ * birth, signature, unsigned contract and password are erased. The row stays
+ * (it may be referenced by an expired invoice) with only its reference left.
+ */
+export async function scrubClosedApplications() {
+  const closed = await prisma.application.findMany({
+    where: {
+      status: { in: [ApplicationStatus.EXPIRED, ApplicationStatus.CANCELLED] },
+      OR: [{ idNumberEnc: { not: null } }, { ktpObjectKey: { not: null } }, { fullName: { not: null } }],
+    },
+    select: { id: true, ktpObjectKey: true, signatureKey: true, contractKey: true },
+    take: 200,
+  });
+
+  for (const app of closed) {
+    for (const key of [app.ktpObjectKey, app.signatureKey, app.contractKey]) {
+      if (key) await deleteObject(key).catch(() => undefined);
+    }
+    await prisma.application.update({
+      where: { id: app.id },
+      data: {
+        fullName: null,
+        phoneE164: null,
+        dateOfBirth: null,
+        idNumberEnc: null,
+        idLast4: null,
+        ktpObjectKey: null,
+        signatureKey: null,
+        contractKey: null,
+        contractHash: null,
+        passwordHash: null,
+        signedIp: null,
+        signedAgent: null,
+      },
+    });
+  }
+  return closed.length;
 }

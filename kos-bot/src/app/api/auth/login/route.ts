@@ -4,7 +4,7 @@ import { log } from "@/lib/logger";
 import { normalizePhone } from "@/lib/money";
 import { clientIp, sameOrigin } from "@/lib/http";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { atLimit, LIMITS, overLimit } from "@/lib/rate-limit";
+import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { renterCookieValue, setRenterCookie } from "@/lib/renter-auth";
 
 export const runtime = "nodejs";
@@ -21,11 +21,13 @@ export async function POST(req: NextRequest) {
   const form = await req.formData();
   const phone = normalizePhone(String(form.get("phone") ?? ""));
   const password = String(form.get("password") ?? "").slice(0, 200);
-  const { limit, windowMs } = LIMITS.renterLogin;
+  const { renterLogin: perPhone, renterLoginIp: perIp } = LIMITS;
 
-  if ((await atLimit("login-ip", ip, limit, windowMs)) || (phone && (await atLimit("login-phone", phone, limit, windowMs)))) {
-    return back("locked=1");
-  }
+  // Count the attempt BEFORE checking the password, so a burst of parallel
+  // requests cannot all slip past the limit while scrypt is still running.
+  const ipLocked = await overLimit("login-ip", ip, perIp.limit, perIp.windowMs);
+  const phoneLocked = phone ? await overLimit("login-phone", phone, perPhone.limit, perPhone.windowMs) : false;
+  if (ipLocked || phoneLocked) return back("locked=1");
 
   const tenant = phone ? await prisma.tenant.findUnique({ where: { phoneE164: phone } }) : null;
   const ok = tenant?.passwordHash
@@ -33,11 +35,13 @@ export async function POST(req: NextRequest) {
     : (await verifyPassword(password, await (dummyHash ??= hashPassword("not-a-real-password"))), false);
 
   if (!tenant || !ok) {
-    await overLimit("login-ip", ip, limit, windowMs);
-    if (phone) await overLimit("login-phone", phone, limit, windowMs);
     log.warn("renter login failed");
     return back("error=1");
   }
+
+  // A successful login clears this phone's attempts, so a renter on several devices is not locked out.
+  const bucket = Math.floor(Date.now() / perPhone.windowMs);
+  await prisma.rateCounter.deleteMany({ where: { key: `login-phone:${tenant.phoneE164}:${bucket}` } });
 
   await prisma.auditLog.create({ data: { actor: "tenant", action: "renter:login", tenantId: tenant.id } });
   const res = NextResponse.redirect(new URL("/?chat=1", req.url), { status: 303 });

@@ -4,12 +4,13 @@ import { safeEqual, signSession } from "@/lib/crypto";
 import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
+import { clientIp } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const ip = (req.headers.get("x-forwarded-for")?.split(",")[0] ?? "0.0.0.0").trim();
+  const ip = clientIp(req);
   if (await overLimit("admin-login", ip, LIMITS.adminLogin.limit, LIMITS.adminLogin.windowMs)) {
     return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi nanti." }, { status: 429 });
   }

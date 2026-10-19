@@ -8,7 +8,8 @@ import { putObject, validateImage } from "@/lib/storage";
 import { hashPassword, passwordProblem } from "@/lib/password";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
-import { buildContractData, findApplicationByToken, onboardingAmount, roomHeldByAnother } from "@/lib/application";
+import { clientIp } from "@/lib/http";
+import { buildContractData, findApplicationByToken, onboardingAmount, roomHeldByAnother, termMonths } from "@/lib/application";
 import { buildContractPdf, contractHash } from "@/lib/contract";
 import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
 
@@ -206,6 +207,10 @@ export async function PUT(req: NextRequest) {
       signedIp: ip,
       signedAgent: req.headers.get("user-agent")?.slice(0, 200) ?? null,
       amountDue: amount,
+      // The terms as signed: the lease is built from these, not from prices on payment day.
+      signedMonthlyRent: contractData.monthlyRent,
+      signedDeposit: contractData.deposit,
+      signedTermMonths: termMonths(app.plan, settings.minMonths),
       status: ApplicationStatus.SIGNED,
     },
   });
@@ -232,9 +237,4 @@ async function roomStillOpenFor(applicationId: string, roomId: string): Promise<
   if (room.hidden) return false;
   if (room.status !== RoomStatus.AVAILABLE && room.status !== RoomStatus.BOOKED) return false;
   return !(await roomHeldByAnother(applicationId, roomId));
-}
-
-function clientIp(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  return (forwarded?.split(",")[0] ?? req.headers.get("x-real-ip") ?? "0.0.0.0").trim();
 }

@@ -11,7 +11,14 @@ export function sameOrigin(req: NextRequest): boolean {
   return origin === new URL(env().APP_URL).origin || origin === req.nextUrl.origin;
 }
 
+/**
+ * The visitor's address as our own proxy saw it. X-Real-IP is set by the proxy
+ * (nginx, Vercel). Otherwise the LAST X-Forwarded-For hop: proxies append the
+ * real address, while anything earlier in the list can be typed by the visitor.
+ */
 export function clientIp(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  return (forwarded?.split(",")[0] ?? req.headers.get("x-real-ip") ?? "0.0.0.0").trim();
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const hops = (req.headers.get("x-forwarded-for") ?? "").split(",").map((h) => h.trim()).filter(Boolean);
+  return hops.at(-1) ?? "0.0.0.0";
 }

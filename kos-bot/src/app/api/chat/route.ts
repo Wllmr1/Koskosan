@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { findWebContactId, resolveWebContext } from "@/lib/chat/context";
-import { handleInbound, RATE_REPLY_MINUTE } from "@/lib/chat/pipeline";
+import { handleInbound, RATE_REPLY_DAY, RATE_REPLY_MINUTE } from "@/lib/chat/pipeline";
+import { chatAllowance } from "@/lib/chat/allowance";
 import { BLOCKED_REPLY } from "@/lib/chat/rules";
 import { webTranscript } from "@/lib/chat/transcript";
 import { clientIp, sameOrigin } from "@/lib/http";
-import { overLimit } from "@/lib/rate-limit";
 import { newAnonId, readAnonId, setChatCookie } from "@/lib/web-session";
 import { currentRenter } from "@/lib/renter-auth";
 
@@ -30,8 +30,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  if (await overLimit("chat-ip", clientIp(req), 60, 60_000)) {
-    return NextResponse.json({ reply: RATE_REPLY_MINUTE, actions: [] }, { status: 429 });
+  const allowance = await chatAllowance(clientIp(req));
+  if (allowance !== "ok") {
+    return NextResponse.json({ reply: allowance === "day" ? RATE_REPLY_DAY : RATE_REPLY_MINUTE, actions: [] }, { status: 429 });
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));

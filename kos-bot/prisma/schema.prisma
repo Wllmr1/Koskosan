@@ -60,6 +60,7 @@ enum ApplicationStatus {
   SIGNED
   AWAITING_PAYMENT
   COMPLETED
+  NEEDS_REVIEW // paid, but the phone belongs to a different existing renter — owner decides
   EXPIRED
   CANCELLED
 }
@@ -279,34 +280,37 @@ model Ticket {
 /// One signup attempt. The chat only ever hands out the link; all personal
 /// data is collected on the web form, never in WhatsApp.
 model Application {
-  id           String            @id @default(cuid())
-  reference    String            @unique // "APP-1042"
-  tokenHash    String            @unique
-  contactId    String?
-  contact      Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  roomId       String
-  room         Room              @relation(fields: [roomId], references: [id])
-  plan         LeasePlan
-  status       ApplicationStatus @default(DRAFT)
-  fullName     String?
-  phoneE164    String?
-  dateOfBirth  DateTime?         @db.Date
-  idNumberEnc  String?
-  idLast4      String?           @db.Char(4)
-  passwordHash String? // the renter's chosen password, copied to Tenant on payment
-  ktpObjectKey String?
-  signatureKey String?
-  contractKey  String?
-  contractHash String? // SHA-256 of the exact contract text the person signed
-  moveInDate   DateTime?         @db.Date
-  signedAt     DateTime?
-  signedIp     String?
-  signedAgent  String?
-  amountDue    Int?
-  leaseId      String?           @unique
-  invoices     Invoice[]
-  expiresAt    DateTime
-  createdAt    DateTime          @default(now())
+  id                String            @id @default(cuid())
+  reference         String            @unique // "APP-1042"
+  tokenHash         String            @unique
+  contactId         String?
+  contact           Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  roomId            String
+  room              Room              @relation(fields: [roomId], references: [id])
+  plan              LeasePlan
+  status            ApplicationStatus @default(DRAFT)
+  fullName          String?
+  phoneE164         String?
+  dateOfBirth       DateTime?         @db.Date
+  idNumberEnc       String?
+  idLast4           String?           @db.Char(4)
+  passwordHash      String? // the renter's chosen password, copied to Tenant on payment
+  ktpObjectKey      String?
+  signatureKey      String?
+  contractKey       String?
+  contractHash      String? // SHA-256 of the exact contract text the person signed
+  moveInDate        DateTime?         @db.Date
+  signedAt          DateTime?
+  signedIp          String?
+  signedAgent       String?
+  amountDue         Int?
+  signedMonthlyRent Int? // terms as signed — the lease is built from these, not from today's prices
+  signedDeposit     Int?
+  signedTermMonths  Int?
+  leaseId           String?           @unique
+  invoices          Invoice[]
+  expiresAt         DateTime
+  createdAt         DateTime          @default(now())
 
   @@index([status, expiresAt])
 }

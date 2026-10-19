@@ -37,6 +37,14 @@ export const LIMITS = {
   applySubmit: { limit: 20, windowMs: 3_600_000 },
   /** admin login attempts per IP per 15 minutes */
   adminLogin: { limit: 8, windowMs: 15 * 60_000 },
-  /** failed renter logins per phone and per IP per 15 minutes */
+  /** renter login attempts per phone number per 15 minutes */
   renterLogin: { limit: 5, windowMs: 15 * 60_000 },
+  /** renter login attempts per IP per 15 minutes — higher, because a campus shares one IP */
+  renterLoginIp: { limit: 30, windowMs: 15 * 60_000 },
+  /** website chat messages per IP per minute */
+  chatIpPerMinute: { limit: 60, windowMs: 60_000 },
+  /** website chat messages per IP per day — caps Claude spend even if cookies are cleared */
+  chatIpPerDay: { limit: 400, windowMs: 86_400_000 },
+  /** website chat messages for the whole site per day — the last line on cost */
+  chatAllPerDay: { limit: 5000, windowMs: 86_400_000 },
 } as const;

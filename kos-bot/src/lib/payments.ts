@@ -5,6 +5,7 @@ import { addMonths, niceDate, rp } from "./money";
 import { notifyOwner } from "./notify";
 import { termMonths } from "./application";
 import { promoteToMember } from "./chat/context";
+import { decrypt } from "./crypto";
 import { deliverToContact, deliverToRenter } from "./chat/deliver";
 
 export type PaymentInput = {
@@ -79,6 +80,49 @@ export async function expireInvoiceByCode(code: string): Promise<void> {
   });
 }
 
+function samePerson(
+  tenant: { idNumberEnc: string; dateOfBirth: Date },
+  app: { idNumberEnc: string | null; dateOfBirth: Date | null }
+): boolean {
+  if (!app.idNumberEnc || !app.dateOfBirth) return false;
+  try {
+    return (
+      decrypt(tenant.idNumberEnc) === decrypt(app.idNumberEnc) &&
+      tenant.dateOfBirth.toISOString().slice(0, 10) === app.dateOfBirth.toISOString().slice(0, 10)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Paid, but the phone belongs to someone else's account: no lease, no account change, owner decides. */
+async function holdForReview(
+  app: { id: string; reference: string; contactId: string | null; fullName: string | null; phoneE164: string | null; room: { code: string } },
+  amount: number,
+  invoiceCode: string
+) {
+  await prisma.application.update({ where: { id: app.id }, data: { status: ApplicationStatus.NEEDS_REVIEW } });
+  await notifyOwner({
+    dedupeKey: `review:${app.reference}`,
+    title: "Pendaftaran perlu dicek",
+    subject: `Perlu dicek: ${app.reference} kamar ${app.room.code}`,
+    body: [
+      `Pembayaran ${rp(amount)} (${invoiceCode}) untuk kamar ${app.room.code} sudah masuk,`,
+      `tapi nomor HP ${app.phoneE164} sudah terdaftar atas nama penghuni lain dengan KTP berbeda.`,
+      ``,
+      `Akun penghuni itu TIDAK diubah dan kontrak belum dibuat. Hubungi pendaftar (${app.fullName}) untuk memastikan nomornya,`,
+      `lalu proses manual atau kembalikan dana.`,
+    ].join("\n"),
+    short: `Pendaftaran ${app.reference} (${app.room.code}) dibayar tapi nomor HP bentrok — perlu dicek.`,
+  });
+  if (app.contactId) {
+    await deliverToContact(
+      app.contactId,
+      `Pembayaran *${rp(amount)}* sudah kami terima ✅ Nomor HP yang kakak isi sudah terdaftar di akun lain, jadi pemilik kos akan menghubungi kakak dulu untuk memastikan sebelum kontraknya aktif ya 🙏`
+    );
+  }
+}
+
 /** Contract signed + first payment received: create the renter and lease, then tell everyone. */
 async function completeOnboarding(applicationId: string, invoiceId: string, amount: number, invoiceCode: string) {
   const app = await prisma.application.findUniqueOrThrow({
@@ -90,7 +134,19 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
 
   const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
   const start = app.moveInDate ?? new Date();
-  const months = termMonths(app.plan, settings.minMonths);
+  // The lease follows the contract as signed, even if the owner changed prices since.
+  const months = app.signedTermMonths ?? termMonths(app.plan, settings.minMonths);
+  const monthlyRent = app.signedMonthlyRent ?? app.room.monthlyPrice;
+  const deposit = app.signedDeposit ?? app.room.monthlyPrice * settings.depositMonths;
+
+  // The phone number on the form is not verified. If it already belongs to a
+  // renter, only the same person (same KTP number and date of birth) may
+  // continue; anyone else is held for the owner and the account is untouched.
+  const existing = await prisma.tenant.findUnique({ where: { phoneE164: app.phoneE164 } });
+  if (existing && !samePerson(existing, app)) {
+    await holdForReview(app, amount, invoiceCode);
+    return;
+  }
 
   const tenantCount = await prisma.tenant.count();
   const accountCode = `WA-${String(tenantCount + 1).padStart(4, "0")}`;
@@ -121,8 +177,8 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
         tenantId: tenant.id,
         roomId: app.roomId,
         plan: app.plan,
-        monthlyRent: app.room.monthlyPrice,
-        deposit: app.room.monthlyPrice * settings.depositMonths,
+        monthlyRent,
+        deposit,
         startDate: start,
         endDate: addMonths(start, months),
         status: LeaseStatus.ACTIVE,
