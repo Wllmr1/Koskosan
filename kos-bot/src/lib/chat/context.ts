@@ -291,8 +291,13 @@ export function identityHeader(ctx: ChatCtx): string {
     ctx.channel === Channel.WEB ? "They are chatting on the website." : "They are chatting on WhatsApp.",
     `The person is a PROSPECT (not a renter).`,
     ctx.name ? `Name: ${ctx.name}.` : `You do not know their name yet — ask once, politely, then call remember_name.`,
+    ctx.channel === Channel.WEB
+      ? `If they say they already rent here and ask about their own account, call prompt_login.`
+      : ``,
     `They have no account, so never imply they owe anything.`,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function sanitizeName(raw?: string | null): string | null {

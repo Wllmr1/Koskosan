@@ -26,4 +26,10 @@ describe("toolsFor", () => {
     expect(list).toContain("get_my_account");
     expect(list).toContain("register_guest");
   });
+
+  it("the login button is offered only to website visitors who are not logged in", () => {
+    expect(names()).toContain("prompt_login");
+    expect(names({ channel: Channel.WHATSAPP })).not.toContain("prompt_login");
+    expect(names({ type: ContactType.MEMBER, verified: true, tenantId: "t1" })).not.toContain("prompt_login");
+  });
 });

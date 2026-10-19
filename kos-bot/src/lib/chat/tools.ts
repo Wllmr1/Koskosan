@@ -302,6 +302,20 @@ export const TOOLS: ToolDef[] = [
   },
 
   {
+    name: "prompt_login",
+    channels: [Channel.WEB],
+    prospectsOnly: true,
+    progress: "Menyiapkan tombol masuk…",
+    description:
+      "Website only. Attach a 'Masuk' button to the renter login page. Use when someone says they already rent here and asks about their own bill, due date, electricity quota, complaint or guests. Share no account details until they are logged in.",
+    input_schema: { type: "object", properties: {} },
+    async run(_input, ctx) {
+      addAction(ctx, "Masuk", "/masuk");
+      return { button: "Masuk", note: "Tell them to log in with their phone number and password, then ask again here." };
+    },
+  },
+
+  {
     name: "get_my_account",
     membersOnly: true,
     progress: "Membuka akun…",

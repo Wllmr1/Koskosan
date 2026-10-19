@@ -16,6 +16,16 @@ export async function overLimit(scope: string, id: string, limit: number, window
   return row.count > limit;
 }
 
+/** True when this key has already used its allowance in the current window. Reads only. */
+export async function atLimit(scope: string, id: string, limit: number, windowMs: number): Promise<boolean> {
+  const bucket = Math.floor(Date.now() / windowMs);
+  const row = await prisma.rateCounter.findUnique({
+    where: { key: `${scope}:${id}:${bucket}` },
+    select: { count: true },
+  });
+  return (row?.count ?? 0) >= limit;
+}
+
 export const LIMITS = {
   /** messages a single WhatsApp number may send per minute */
   waPerMinute: { limit: 12, windowMs: 60_000 },
@@ -27,4 +37,6 @@ export const LIMITS = {
   applySubmit: { limit: 20, windowMs: 3_600_000 },
   /** admin login attempts per IP per 15 minutes */
   adminLogin: { limit: 8, windowMs: 15 * 60_000 },
+  /** failed renter logins per phone and per IP per 15 minutes */
+  renterLogin: { limit: 5, windowMs: 15 * 60_000 },
 } as const;
