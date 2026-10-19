@@ -221,7 +221,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         ) : (
           <table>
             <thead>
-              <tr><th>Akun</th><th>Kamar</th><th>Skema</th><th>Kontrak</th><th>Dokumen</th></tr>
+              <tr><th>Akun</th><th>Kamar</th><th>Skema</th><th>Kontrak</th><th>Dokumen</th><th>Akses</th></tr>
             </thead>
             <tbody>
               {leases.map((lease) => (
@@ -242,6 +242,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                         <a href={`/api/admin/file?key=${encodeURIComponent(lease.tenant.ktpObjectKey)}`} target="_blank" rel="noreferrer">KTP</a>
                       </>
                     )}
+                  </td>
+                  <td>
+                    <form method="post" action="/api/admin/password-link" target="_blank">
+                      <input type="hidden" name="tenantId" value={lease.tenant.id} />
+                      <button className="btn" type="submit" style={{ padding: "6px 10px", fontSize: 13 }}>
+                        Buat link atur password
+                      </button>
+                    </form>
                   </td>
                 </tr>
               ))}
