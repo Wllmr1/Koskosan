@@ -78,6 +78,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <header style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 24 }}>Dashboard pemilik</h1>
         <a className="btn" href="/" style={{ marginLeft: "auto" }}>Lihat situs</a>
+        <a className="btn" href="/admin/data">Data kos</a>
         <a className="btn" href="/api/admin/logout">Keluar</a>
       </header>
 

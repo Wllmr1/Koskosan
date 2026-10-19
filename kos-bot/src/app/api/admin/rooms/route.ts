@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RoomStatus } from "@prisma/client";
 import { z } from "zod";
-import { env } from "@/env";
-import { isOwner } from "@/lib/auth";
+import { ownerPostGuard } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -20,13 +19,8 @@ const schema = z.object({
  * both read this row, so the change is live everywhere at once.
  */
 export async function POST(req: NextRequest) {
-  if (!(await isOwner())) return new NextResponse("unauthorized", { status: 401 });
-
-  // Same-origin only: a form on another site cannot submit this.
-  const origin = req.headers.get("origin");
-  if (origin && origin !== new URL(env().APP_URL).origin && origin !== req.nextUrl.origin) {
-    return new NextResponse("forbidden", { status: 403 });
-  }
+  const denied = await ownerPostGuard(req);
+  if (denied) return denied;
 
   const form = await req.formData();
   const parsed = schema.safeParse({
