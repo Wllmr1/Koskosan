@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { findWebContactId, resolveWebContext } from "@/lib/chat/context";
+import { handleInbound, RATE_REPLY_MINUTE } from "@/lib/chat/pipeline";
+import { BLOCKED_REPLY } from "@/lib/chat/rules";
+import { webTranscript } from "@/lib/chat/transcript";
+import { clientIp, sameOrigin } from "@/lib/http";
+import { overLimit } from "@/lib/rate-limit";
+import { newAnonId, readAnonId, setChatCookie } from "@/lib/web-session";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const bodySchema = z.object({ message: z.string().trim().min(1).max(600) });
+
+/** The conversation so far, for when the chat window opens. Creates nothing. */
+export async function GET() {
+  const anonId = await readAnonId();
+  const tenantId: string | null = null;
+  const contactId = await findWebContactId({ anonId, tenantId });
+  return NextResponse.json(
+    { messages: contactId ? await webTranscript(contactId) : [], renter: null },
+    { headers: { "cache-control": "no-store" } }
+  );
+}
+
+/** One message from the website chat. Same pipeline as WhatsApp. */
+export async function POST(req: NextRequest) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
+  if (await overLimit("chat-ip", clientIp(req), 60, 60_000)) {
+    return NextResponse.json({ reply: RATE_REPLY_MINUTE, actions: [] }, { status: 429 });
+  }
+
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Pesan kosong atau terlalu panjang (maks. 600 karakter)." }, { status: 400 });
+  }
+
+  let anonId = await readAnonId();
+  let newCookie: string | null = null;
+  if (!anonId) {
+    const fresh = newAnonId();
+    anonId = fresh.id;
+    newCookie = fresh.cookie;
+  }
+
+  const tenantId: string | null = null;
+  const ctx = await resolveWebContext({ anonId, tenantId });
+  const reply = await handleInbound(ctx, parsed.data.message);
+
+  const res = NextResponse.json({ reply: reply?.text ?? BLOCKED_REPLY, actions: reply?.actions ?? [] });
+  if (newCookie) setChatCookie(res, newCookie);
+  return res;
+}
