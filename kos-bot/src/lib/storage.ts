@@ -73,9 +73,9 @@ function safeLocalPath(key: string) {
 const ALLOWED_IMAGE = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_UPLOAD_BYTES = 6 * 1024 * 1024;
 
-/** Validates an uploaded KTP photo by magic bytes, not by the filename. */
-export function validateImage(buf: Buffer, declaredType: string) {
-  if (buf.byteLength > MAX_UPLOAD_BYTES) throw new Error("Ukuran file maksimal 6 MB.");
+/** Validates an uploaded image by magic bytes, not by the filename. */
+export function validateImage(buf: Buffer, declaredType: string, maxBytes = MAX_UPLOAD_BYTES) {
+  if (buf.byteLength > maxBytes) throw new Error(`Ukuran file maksimal ${Math.round(maxBytes / 1024 / 1024)} MB.`);
   if (!ALLOWED_IMAGE.has(declaredType)) throw new Error("Format harus JPG, PNG, atau WEBP.");
   const isJpeg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
   const isPng = buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));

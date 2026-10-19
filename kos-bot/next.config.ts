@@ -24,7 +24,7 @@ const csp = [
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  serverExternalPackages: ["@prisma/client", "pdf-lib"],
+  serverExternalPackages: ["@prisma/client", "pdf-lib", "sharp"],
   async headers() {
     return [
       {

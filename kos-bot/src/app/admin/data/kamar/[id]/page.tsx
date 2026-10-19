@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Notice from "@/components/admin/Notice";
 import RoomFields from "@/components/admin/RoomFields";
+import PhotoManager from "@/components/admin/PhotoManager";
 
 export default async function EditRoomPage({
   params,
@@ -12,7 +13,7 @@ export default async function EditRoomPage({
 }) {
   const { id } = await params;
   const q = await searchParams;
-  const room = await prisma.room.findUnique({ where: { id } });
+  const room = await prisma.room.findUnique({ where: { id }, include: { photos: { orderBy: { sortOrder: "asc" } } } });
   if (!room) notFound();
 
   return (
@@ -28,7 +29,7 @@ export default async function EditRoomPage({
           <a className="btn" href={`/kamar/${encodeURIComponent(room.code)}`} target="_blank" rel="noreferrer">Lihat di situs</a>
         </div>
       </form>
-      {/* Task 14 adds the photo manager here. */}
+      <PhotoManager photos={room.photos} roomId={room.id} back={`/admin/data/kamar/${room.id}`} />
       <form method="post" action="/api/admin/data/rooms" className="card" style={{ padding: 22 }}>
         <input type="hidden" name="op" value="delete" />
         <input type="hidden" name="id" value={room.id} />
