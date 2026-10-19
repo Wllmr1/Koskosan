@@ -27,6 +27,9 @@ export type ContractData = {
   guestFee: number;
   houseRules: string[];
   yearlyMonths: number;
+  depositReturnDays: number;
+  utilitiesNote: string;
+  maxGuestNights: number;
 };
 
 /**
@@ -57,15 +60,15 @@ export function contractClauses(d: ContractData): { heading: string; body: strin
     },
     {
       heading: "5. Deposit",
-      body: `Deposit ${rp(d.deposit)} dibayar di awal dan dikembalikan paling lambat 14 hari setelah Pihak Kedua keluar, dikurangi biaya kerusakan di luar pemakaian wajar.`,
+      body: `Deposit ${rp(d.deposit)} dibayar di awal dan dikembalikan paling lambat ${d.depositReturnDays} hari setelah Pihak Kedua keluar, dikurangi biaya kerusakan di luar pemakaian wajar.`,
     },
     {
       heading: "6. Listrik, air, dan internet",
-      body: `Termasuk kuota listrik ${d.electricQuota} kWh per bulan. Kelebihan pemakaian ditagih ${rp(d.electricRate)} per kWh pada bulan berikutnya. Air dan wifi termasuk tanpa batas.`,
+      body: `Termasuk kuota listrik ${d.electricQuota} kWh per bulan. Kelebihan pemakaian ditagih ${rp(d.electricRate)} per kWh pada bulan berikutnya. ${d.utilitiesNote}.`,
     },
     {
       heading: "7. Tamu menginap",
-      body: `Tamu menginap wajib didaftarkan terlebih dahulu dan dikenakan biaya ${rp(d.guestFee)} per malam per orang, maksimal 3 malam berturut-turut.`,
+      body: `Tamu menginap wajib didaftarkan terlebih dahulu dan dikenakan biaya ${rp(d.guestFee)} per malam per orang, maksimal ${d.maxGuestNights} malam berturut-turut.`,
     },
     { heading: "8. Aturan rumah", body: d.houseRules.map((r, i) => `${i + 1}) ${r}`).join("\n") },
     {

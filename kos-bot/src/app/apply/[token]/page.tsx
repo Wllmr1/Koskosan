@@ -1,7 +1,7 @@
 import { ApplicationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildContractData, findApplicationByToken, onboardingAmount } from "@/lib/application";
-import { contractClauses } from "@/lib/contract";
+import { contractClauses, contractHash } from "@/lib/contract";
 import { decrypt } from "@/lib/crypto";
 import { rp } from "@/lib/money";
 import ApplyFlow from "./ApplyFlow";
@@ -23,20 +23,19 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
   if (app.status === ApplicationStatus.COMPLETED) {
     return (
       <Shell>
-        <Done title="Pendaftaran selesai" message={`Kamar ${app.room.code} sudah resmi jadi milik kakak. Kontrak dikirim lewat WhatsApp.`} />
+        <Done title="Pendaftaran selesai" message={`Kamar ${app.room.code} sudah resmi jadi milik kakak. Konfirmasinya sudah ada di chat.`} />
       </Shell>
     );
   }
 
-  const amount = onboardingAmount(app.room.monthlyPrice, app.plan, settings.yearlyMonths);
+  const amount = onboardingAmount(app.room.monthlyPrice, app.plan, settings.yearlyMonths, settings.depositMonths);
   const rentMonths = app.plan === "YEARLY" ? settings.yearlyMonths : 1;
 
   // Built by the same function as the signed PDF, so the wording on screen is
   // exactly what gets signed and hashed. Only masked ID digits reach the page.
   // Before step 1 there are no details yet, so no contract is shown.
-  const clauses = app.idNumberEnc
-    ? contractClauses(await buildContractData(app.id, decrypt(app.idNumberEnc)))
-    : [];
+  const contract = app.idNumberEnc ? await buildContractData(app.id, decrypt(app.idNumberEnc)) : null;
+  const clauses = contract ? contractClauses(contract) : [];
 
   return (
     <Shell>
@@ -52,10 +51,11 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
         }}
         plan={app.plan === "YEARLY" ? "tahunan" : "bulanan"}
         startStep={clauses.length ? 2 : 1}
+        contractHash={contract ? contractHash(contract) : ""}
         summary={{
           rentLabel: app.plan === "YEARLY" ? `Sewa ${rentMonths} bulan (tahunan)` : "Sewa bulan pertama",
           rentAmount: rp(app.room.monthlyPrice * rentMonths),
-          depositAmount: rp(app.room.monthlyPrice),
+          depositAmount: rp(app.room.monthlyPrice * settings.depositMonths),
           total: rp(amount),
         }}
         clauses={clauses}

@@ -11,6 +11,7 @@ type Props = {
   startStep: number;
   summary: { rentLabel: string; rentAmount: string; depositAmount: string; total: string };
   clauses: { heading: string; body: string }[];
+  contractHash: string;
 };
 
 const STEPS = ["Data diri", "Kontrak", "Tanda tangan", "Pembayaran"];
@@ -146,7 +147,12 @@ export default function ApplyFlow(props: Props) {
       const res = await fetch("/api/apply", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: props.token, signature: canvas.toDataURL("image/png"), agreed: "true" }),
+        body: JSON.stringify({
+          token: props.token,
+          signature: canvas.toDataURL("image/png"),
+          agreed: "true",
+          shownHash: props.contractHash,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Gagal menyimpan tanda tangan.");

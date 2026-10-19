@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<RoomStatus, string> = {
 export default async function HomePage() {
   const [settings, rooms, services, nearby, faq] = await Promise.all([
     prisma.propertySetting.findUnique({ where: { id: "default" } }),
-    prisma.room.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }] }),
+    prisma.room.findMany({ where: { hidden: false }, orderBy: [{ sortOrder: "asc" }, { code: "asc" }] }),
     prisma.service.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.nearbyPlace.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.faqEntry.findMany({ orderBy: { sortOrder: "asc" } }),
@@ -86,7 +86,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <Section id="kamar" title="Kamar" sub="Harga termasuk wifi, air, dan kuota listrik. Deposit satu bulan, dikembalikan setelah cek kamar.">
+        <Section id="kamar" title="Kamar" sub={`Harga termasuk kuota listrik ${settings.electricQuota} kWh. ${settings.utilitiesNote}. Deposit ${settings.depositMonths} bulan.`}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(232px,1fr))", gap: 14 }}>
             {rooms.map((room) => (
               <article
@@ -144,7 +144,9 @@ export default async function HomePage() {
             <tbody>
               <tr>
                 <td>Deposit</td>
-                <td>1× sewa bulanan, dikembalikan maksimal 14 hari setelah keluar</td>
+                <td>
+                  {settings.depositMonths}× sewa bulanan, dikembalikan maksimal {settings.depositReturnDays} hari setelah keluar
+                </td>
               </tr>
               <tr>
                 <td>Bayar tahunan</td>
@@ -158,11 +160,13 @@ export default async function HomePage() {
               </tr>
               <tr>
                 <td>Air dan wifi</td>
-                <td>Termasuk, tanpa batas</td>
+                <td>{settings.utilitiesNote}</td>
               </tr>
               <tr>
                 <td>Tamu menginap</td>
-                <td>{rp(settings.guestFeePerNight)} per malam, maksimal 3 malam berturut-turut</td>
+                <td>
+                  {rp(settings.guestFeePerNight)} per malam, maksimal {settings.maxGuestNights} malam berturut-turut
+                </td>
               </tr>
               <tr>
                 <td>Denda telat bayar</td>

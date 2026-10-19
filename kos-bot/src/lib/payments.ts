@@ -122,7 +122,7 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
         roomId: app.roomId,
         plan: app.plan,
         monthlyRent: app.room.monthlyPrice,
-        deposit: app.room.monthlyPrice,
+        deposit: app.room.monthlyPrice * settings.depositMonths,
         startDate: start,
         endDate: addMonths(start, months),
         status: LeaseStatus.ACTIVE,

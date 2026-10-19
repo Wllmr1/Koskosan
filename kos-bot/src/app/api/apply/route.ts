@@ -131,6 +131,7 @@ const signSchema = z.object({
   token: z.string().min(20).max(64),
   signature: z.string().startsWith("data:image/png;base64,").max(600_000),
   agreed: z.literal("true"),
+  shownHash: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
 /**
@@ -175,6 +176,15 @@ export async function PUT(req: NextRequest) {
   const idNumber = decrypt(app.idNumberEnc);
 
   const contractData = await buildContractData(app.id, idNumber);
+
+  // The owner may have changed a price or rule while this page was open.
+  // Never let someone sign text that differs from what they read.
+  if (parsed.data.shownHash !== contractHash(contractData)) {
+    return NextResponse.json(
+      { error: "Isi kontrak baru saja berubah. Muat ulang halaman dan baca lagi ya kak.", reload: true },
+      { status: 409 }
+    );
+  }
   const signedAt = new Date();
 
   const sigKey = `signatures/${app.reference}.png`;
@@ -184,7 +194,7 @@ export async function PUT(req: NextRequest) {
   const contractKey = `contracts/${app.reference}.pdf`;
   await putObject(contractKey, pdf, "application/pdf");
 
-  const amount = onboardingAmount(contractData.monthlyRent, app.plan, settings.yearlyMonths);
+  const amount = onboardingAmount(contractData.monthlyRent, app.plan, settings.yearlyMonths, settings.depositMonths);
 
   await prisma.application.update({
     where: { id: app.id },
@@ -218,7 +228,8 @@ export async function PUT(req: NextRequest) {
 
 /** The room is free, or held (BOOKED) by this very application and nobody else. */
 async function roomStillOpenFor(applicationId: string, roomId: string): Promise<boolean> {
-  const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { status: true } });
+  const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { status: true, hidden: true } });
+  if (room.hidden) return false;
   if (room.status !== RoomStatus.AVAILABLE && room.status !== RoomStatus.BOOKED) return false;
   return !(await roomHeldByAnother(applicationId, roomId));
 }

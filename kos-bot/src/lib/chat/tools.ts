@@ -109,6 +109,7 @@ export const TOOLS: ToolDef[] = [
       const onlyAvailable = input.only_available !== false;
       const rooms = await prisma.room.findMany({
         where: {
+          hidden: false,
           ...(input.type ? { type: { equals: str(input.type, 40), mode: "insensitive" } } : {}),
           ...(maxPrice && Number.isFinite(maxPrice) ? { monthlyPrice: { lte: maxPrice } } : {}),
           ...(onlyAvailable ? { status: RoomStatus.AVAILABLE } : {}),
@@ -117,7 +118,7 @@ export const TOOLS: ToolDef[] = [
         take: 8,
       });
 
-      const totalAvailable = await prisma.room.count({ where: { status: RoomStatus.AVAILABLE } });
+      const totalAvailable = await prisma.room.count({ where: { status: RoomStatus.AVAILABLE, hidden: false } });
       const results = rooms.map((r) => ({
         room: r.code,
         type: r.type,
@@ -132,7 +133,7 @@ export const TOOLS: ToolDef[] = [
 
       if (!results.length) {
         const fallback = await prisma.room.findMany({
-          where: { status: RoomStatus.AVAILABLE },
+          where: { status: RoomStatus.AVAILABLE, hidden: false },
           orderBy: { monthlyPrice: "asc" },
           take: 3,
         });
@@ -179,6 +180,7 @@ export const TOOLS: ToolDef[] = [
       switch (topic) {
         case "fees": {
           const rooms = await prisma.room.findMany({
+            where: { hidden: false },
             distinct: ["type"],
             orderBy: { monthlyPrice: "asc" },
             select: { type: true, monthlyPrice: true },
@@ -186,11 +188,11 @@ export const TOOLS: ToolDef[] = [
           return {
             topic,
             room_prices: rooms.map((r) => `${r.type}: ${rp(r.monthlyPrice)} per bulan`),
-            deposit: "1× sewa bulanan, dikembalikan setelah cek kamar",
+            deposit: `${s.depositMonths}× sewa bulanan, dikembalikan maksimal ${s.depositReturnDays} hari setelah keluar`,
             yearly_deal: `Bayar tahunan: ${s.yearlyMonths} bulan untuk 12 bulan sewa`,
             electricity: `Kuota ${s.electricQuota} kWh/bulan termasuk. Kelebihan ${rp(s.electricRate)}/kWh.`,
-            water_and_wifi: "Termasuk, tanpa batas",
-            guest_fee: `${rp(s.guestFeePerNight)} per malam per tamu`,
+            water_and_wifi: s.utilitiesNote,
+            guest_fee: `${rp(s.guestFeePerNight)} per malam per tamu, maksimal ${s.maxGuestNights} malam berturut-turut`,
             late_fee: `${rp(s.lateFeePerDay)}/hari setelah tanggal ${s.dueDayOfMonth}, maksimal ${rp(s.lateFeeMax)}`,
           };
         }
@@ -203,7 +205,14 @@ export const TOOLS: ToolDef[] = [
           return { topic, info: rows.map((r) => `${r.name}: ${r.priceNote}`) };
         }
         case "guest_rules":
-          return { topic, info: s.guestRules, fee_per_night: rp(s.guestFeePerNight), register_before: `${s.guestCutoffHour}.00 WIB` };
+          return {
+            topic,
+            info: s.guestRules,
+            fee_per_night: rp(s.guestFeePerNight),
+            register_before: `${s.guestCutoffHour}.00 WIB`,
+            max_nights: s.maxGuestNights,
+            max_guests_at_once: s.maxGuestsAtOnce,
+          };
         case "house_rules":
           return { topic, info: s.houseRules };
         case "nearby": {
@@ -238,7 +247,7 @@ export const TOOLS: ToolDef[] = [
     async run(input, ctx) {
       const code = str(input.room_code, 20).toUpperCase();
       const room = await prisma.room.findUnique({ where: { code } });
-      if (!room) throw new Error(`No room called ${code}. Call search_rooms and offer a real one.`);
+      if (!room || room.hidden) throw new Error(`No room called ${code}. Call search_rooms and offer a real one.`);
       if (room.status !== RoomStatus.AVAILABLE) {
         throw new Error(`Room ${room.code} is ${room.status.toLowerCase()}. Offer an available room instead.`);
       }
@@ -404,7 +413,7 @@ export const TOOLS: ToolDef[] = [
         remaining_kwh: Math.max(0, reading.quotaKwh - used),
         rate_per_extra_kwh: rp(reading.ratePerKwh),
         estimated_extra_charge: rp(Math.round(over * reading.ratePerKwh)),
-        water_and_wifi: "termasuk, tanpa kuota",
+        utilities: (await settings()).utilitiesNote,
         last_updated: niceDate(reading.updatedAt),
       };
     },
@@ -481,7 +490,9 @@ export const TOOLS: ToolDef[] = [
       if (idDigits.length !== 16) throw new Error("A KTP number must be exactly 16 digits. Ask them to check it.");
 
       const nights = int(input.nights);
-      if (!(nights >= 1 && nights <= 3)) throw new Error("Maximum 3 consecutive nights per guest.");
+      if (!(nights >= 1 && nights <= s.maxGuestNights)) {
+        throw new Error(`Maximum ${s.maxGuestNights} consecutive nights per guest.`);
+      }
 
       const checkIn = str(input.check_in, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn)) throw new Error("Check-in date must be YYYY-MM-DD.");
@@ -493,22 +504,24 @@ export const TOOLS: ToolDef[] = [
         );
       }
 
-      // House rule: at most 2 guests staying on any one night. Stays are at most
-      // 3 nights, so only stays that start within 3 days before could overlap.
+      // House rule: at most maxGuestsAtOnce guests on any one night. Stays are at
+      // most maxGuestNights long, so only stays starting that many days before can overlap.
       // Abandoned registrations (invoice expired or voided) do not count.
       const start = new Date(`${checkIn}T00:00:00Z`);
       const end = new Date(start.getTime() + nights * 86_400_000);
       const nearby = await prisma.guestStay.findMany({
         where: {
           tenantId: ctx.tenantId,
-          checkIn: { gte: new Date(start.getTime() - 3 * 86_400_000), lt: end },
+          checkIn: { gte: new Date(start.getTime() - s.maxGuestNights * 86_400_000), lt: end },
           NOT: { invoice: { is: { status: { in: [InvoiceStatus.EXPIRED, InvoiceStatus.VOID] } } } },
         },
         select: { checkIn: true, nights: true },
       });
       const overlapping = nearby.filter((g) => g.checkIn.getTime() + g.nights * 86_400_000 > start.getTime());
-      if (overlapping.length >= 2) {
-        throw new Error("This renter already has 2 guests registered for some of those nights, the maximum.");
+      if (overlapping.length >= s.maxGuestsAtOnce) {
+        throw new Error(
+          `This renter already has ${s.maxGuestsAtOnce} guests registered for some of those nights, the maximum.`
+        );
       }
 
       const fee = nights * s.guestFeePerNight;

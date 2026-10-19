@@ -41,10 +41,10 @@ export function termMonths(plan: LeasePlan, minMonths: number) {
   return plan === LeasePlan.YEARLY ? 12 : minMonths;
 }
 
-/** First payment = rent for the paid period + one month's deposit. */
-export function onboardingAmount(monthlyPrice: number, plan: LeasePlan, yearlyMonths: number) {
+/** First payment = rent for the paid period + the deposit (depositMonths × monthly rent). */
+export function onboardingAmount(monthlyPrice: number, plan: LeasePlan, yearlyMonths: number, depositMonths: number) {
   const rentMonths = plan === LeasePlan.YEARLY ? yearlyMonths : 1;
-  return monthlyPrice * rentMonths + monthlyPrice;
+  return monthlyPrice * rentMonths + monthlyPrice * depositMonths;
 }
 
 export function termLabel(plan: LeasePlan, minMonths: number) {
@@ -74,7 +74,7 @@ export async function buildContractData(applicationId: string, idNumber: string)
     roomSize: app.room.sizeLabel,
     plan: app.plan,
     monthlyRent: app.room.monthlyPrice,
-    deposit: app.room.monthlyPrice,
+    deposit: app.room.monthlyPrice * s.depositMonths,
     startDate: start,
     endDate: addMonths(start, months),
     termLabel: termLabel(app.plan, s.minMonths),
@@ -86,6 +86,9 @@ export async function buildContractData(applicationId: string, idNumber: string)
     guestFee: s.guestFeePerNight,
     houseRules: s.houseRules,
     yearlyMonths: s.yearlyMonths,
+    depositReturnDays: s.depositReturnDays,
+    utilitiesNote: s.utilitiesNote,
+    maxGuestNights: s.maxGuestNights,
   };
 }
 
