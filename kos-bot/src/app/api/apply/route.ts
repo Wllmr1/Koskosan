@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { normalizePhone, rp } from "@/lib/money";
 import { putObject, validateImage } from "@/lib/storage";
+import { hashPassword, passwordProblem } from "@/lib/password";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { buildContractData, findApplicationByToken, onboardingAmount, roomHeldByAnother } from "@/lib/application";
@@ -21,6 +22,8 @@ const detailsSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   idNumber: z.string().trim(),
   moveInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  password: z.string().max(200),
+  passwordConfirm: z.string().max(200),
 });
 
 /**
@@ -41,6 +44,8 @@ export async function POST(req: NextRequest) {
     dateOfBirth: form.get("dateOfBirth"),
     idNumber: form.get("idNumber"),
     moveInDate: form.get("moveInDate"),
+    password: form.get("password"),
+    passwordConfirm: form.get("passwordConfirm"),
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "Data belum lengkap atau formatnya salah." }, { status: 400 });
@@ -68,6 +73,10 @@ export async function POST(req: NextRequest) {
 
   const phone = normalizePhone(data.phone);
   if (!phone) return NextResponse.json({ error: "Nomor HP tidak valid." }, { status: 400 });
+
+  const passwordError = passwordProblem(data.password, data.passwordConfirm, phone);
+  if (passwordError) return NextResponse.json({ error: passwordError }, { status: 400 });
+  const passwordHash = await hashPassword(data.password);
 
   const idDigits = data.idNumber.replace(/\D/g, "");
   if (idDigits.length !== 16) return NextResponse.json({ error: "Nomor KTP harus 16 digit." }, { status: 400 });
@@ -102,6 +111,7 @@ export async function POST(req: NextRequest) {
       idNumberEnc: encrypt(idDigits),
       idLast4: idDigits.slice(-4),
       ktpObjectKey: ktpKey,
+      passwordHash,
       moveInDate: new Date(`${data.moveInDate}T00:00:00Z`),
       status: ApplicationStatus.DETAILS_SUBMITTED,
     },

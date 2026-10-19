@@ -106,8 +106,14 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
         idNumberEnc: app.idNumberEnc!,
         idLast4: app.idLast4 ?? "0000",
         ktpObjectKey: app.ktpObjectKey,
+        passwordHash: app.passwordHash,
       },
-      update: { fullName: app.fullName!, ktpObjectKey: app.ktpObjectKey },
+      update: {
+        fullName: app.fullName!,
+        ktpObjectKey: app.ktpObjectKey,
+        // A returning renter's new password replaces the old one and logs out old sessions.
+        ...(app.passwordHash ? { passwordHash: app.passwordHash, sessionVersion: { increment: 1 } } : {}),
+      },
     });
 
     const lease = await tx.lease.create({

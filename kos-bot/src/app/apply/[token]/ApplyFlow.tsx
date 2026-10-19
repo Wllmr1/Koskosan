@@ -41,6 +41,8 @@ export default function ApplyFlow(props: Props) {
     const idNumber = String(data.get("idNumber") ?? "").replace(/\D/g, "");
     const dob = String(data.get("dateOfBirth") ?? "");
     const ktp = data.get("ktp");
+    const password = String(data.get("password") ?? "");
+    const passwordConfirm = String(data.get("passwordConfirm") ?? "");
 
     let ok = true;
     if (name.split(/\s+/).filter(Boolean).length < 2) { fail("fullName", "Tulis nama lengkap sesuai KTP."); ok = false; }
@@ -54,6 +56,8 @@ export default function ApplyFlow(props: Props) {
     if (idNumber.length !== 16) { fail("idNumber", "Nomor KTP harus 16 digit."); ok = false; }
     if (!(ktp instanceof File) || ktp.size === 0) { fail("ktp", "Foto KTP wajib diunggah."); ok = false; }
     else if (ktp.size > 6 * 1024 * 1024) { fail("ktp", "Ukuran file maksimal 6 MB."); ok = false; }
+    if (password.length < 10) { fail("password", "Password minimal 10 karakter."); ok = false; }
+    else if (password !== passwordConfirm) { fail("passwordConfirm", "Kedua password tidak sama."); ok = false; }
     if (!ok) return;
 
     setBusy(true);
@@ -208,6 +212,19 @@ export default function ApplyFlow(props: Props) {
             <Field label="Foto KTP" error={errors.ktp} hint="JPG, PNG, atau WEBP. Maksimal 6 MB. Hanya pemilik kos yang bisa membukanya.">
               <input name="ktp" type="file" accept="image/jpeg,image/png,image/webp" onChange={() => clearError("ktp")} required />
             </Field>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field
+                label="Buat password"
+                error={errors.password}
+                hint="Minimal 10 karakter. Dipakai untuk masuk sebagai penghuni."
+              >
+                <input name="password" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("password")} required />
+              </Field>
+              <Field label="Ulangi password" error={errors.passwordConfirm}>
+                <input name="passwordConfirm" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("passwordConfirm")} required />
+              </Field>
+            </div>
 
             <Field label="Tanggal mulai masuk" error={errors.moveInDate}>
               <input name="moveInDate" type="date" min={today} defaultValue={today} required />

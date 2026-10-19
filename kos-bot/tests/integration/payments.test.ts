@@ -6,6 +6,7 @@ import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
 import { recordPayment } from "@/lib/payments";
 import { purgeChatMemory } from "@/lib/jobs";
 import { uniq } from "../helpers";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 afterAll(() => prisma.$disconnect());
 
@@ -30,6 +31,7 @@ async function signedApplication(roomCode: string) {
       idLast4: id.slice(-4),
       moveInDate: new Date("2026-11-01"),
       signedAt: new Date(),
+      passwordHash: await hashPassword("kamar-impian-123"),
       expiresAt: new Date(Date.now() + 86_400_000),
     },
   });
@@ -62,6 +64,7 @@ describe("recordPayment on a signed application", () => {
     expect(await recordPayment(event)).toBe("duplicate");
 
     const tenant = await prisma.tenant.findUniqueOrThrow({ where: { phoneE164: app.phoneE164! }, include: { leases: true } });
+    expect(await verifyPassword("kamar-impian-123", tenant.passwordHash)).toBe(true);
     expect(tenant.leases).toHaveLength(1);
     expect(tenant.leases[0].status).toBe("ACTIVE");
     expect((await prisma.room.findUniqueOrThrow({ where: { id: room.id } })).status).toBe(RoomStatus.OCCUPIED);
