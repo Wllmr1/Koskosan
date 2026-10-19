@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { niceDate, rp } from "@/lib/money";
 import { botChatLink } from "@/lib/whatsapp";
 import OpenChatButton from "@/components/OpenChatButton";
+import { photoUrl } from "@/lib/photos";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<RoomStatus, string> = {
   AVAILABLE: "Tersedia",
@@ -19,12 +20,17 @@ const STATUS_LABEL: Record<RoomStatus, string> = {
  * does not show.
  */
 export default async function HomePage() {
-  const [settings, rooms, services, nearby, faq] = await Promise.all([
+  const [settings, rooms, services, nearby, faq, gallery] = await Promise.all([
     prisma.propertySetting.findUnique({ where: { id: "default" } }),
-    prisma.room.findMany({ where: { hidden: false }, orderBy: [{ sortOrder: "asc" }, { code: "asc" }] }),
+    prisma.room.findMany({
+      where: { hidden: false },
+      orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+      include: { photos: { where: { isCover: true }, take: 1 } },
+    }),
     prisma.service.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.nearbyPlace.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.faqEntry.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.photo.findMany({ where: { roomId: null }, orderBy: { sortOrder: "asc" }, take: 8 }),
   ]);
 
   if (!settings) {
@@ -67,6 +73,11 @@ export default async function HomePage() {
           <p className="muted" style={{ maxWidth: "58ch", margin: "14px 0 20px" }}>
             {settings.address}. Tanya apa saja ke asisten kami, 24 jam, langsung dibalas.
           </p>
+          {settings.mapsUrl && (
+            <p style={{ margin: "-10px 0 18px" }}>
+              <a href={settings.mapsUrl} target="_blank" rel="noreferrer noopener">Lihat di Google Maps</a>
+            </p>
+          )}
           <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya kamar kosong</OpenChatButton>
 
           <div
@@ -86,13 +97,32 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {gallery.length > 0 && (
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10, marginBottom: 20 }}>
+            {gallery.map((p) => (
+              <figure key={p.id} style={{ margin: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl(p.key)} alt={p.caption || settings.name} width={p.width} height={p.height} loading="lazy"
+                  style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 14, display: "block" }} />
+                {p.caption && <figcaption className="small muted" style={{ marginTop: 4 }}>{p.caption}</figcaption>}
+              </figure>
+            ))}
+          </section>
+        )}
+
         <Section id="kamar" title="Kamar" sub={`Harga termasuk kuota listrik ${settings.electricQuota} kWh. ${settings.utilitiesNote}. Deposit ${settings.depositMonths} bulan.`}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(232px,1fr))", gap: 14 }}>
             {rooms.map((room) => (
-              <article
+              <a
                 key={room.id}
-                style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "14px 15px 15px" }}
+                href={`/kamar/${encodeURIComponent(room.code)}`}
+                style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "14px 15px 15px", color: "inherit", textDecoration: "none", display: "block" }}
               >
+                {room.photos[0] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrl(room.photos[0].key)} alt={`Kamar ${room.code}`} loading="lazy"
+                    style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 10, marginBottom: 10, display: "block" }} />
+                )}
                 <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 16 }}>
                   {room.code} · {room.type}
                 </div>
@@ -115,7 +145,7 @@ export default async function HomePage() {
                         : ""}
                   </span>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         </Section>
