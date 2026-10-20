@@ -2,13 +2,13 @@ import { RoomStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { rp } from "@/lib/money";
 import OpenChatButton from "@/components/OpenChatButton";
-import { PhotoGrid } from "@/components/site/PhotoSlot";
-import { Fact, NoData } from "@/components/site/ui";
+import { PhotoGrid, PhotoSlot } from "@/components/site/PhotoSlot";
+import { NoData } from "@/components/site/ui";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Beranda: a short welcome and one card per page. The site is also the
+ * Beranda: a short welcome and a way into each page. The site is also the
  * assistant's information source — both read the same rows, so the bot can
  * never quote a price the site does not show.
  */
@@ -25,52 +25,56 @@ export default async function HomePage() {
 
   const available = rooms.filter((r) => r.status === RoomStatus.AVAILABLE).length;
   const cheapest = rooms.length ? Math.min(...rooms.map((r) => r.monthlyPrice)) : 0;
+  const [heroPhoto, ...restOfGallery] = gallery;
 
-  const cards = [
+  const pages = [
     { href: "/kamar", title: "Kamar", text: `${available} dari ${rooms.length} kamar tersedia, mulai ${rp(cheapest)} per bulan.` },
     { href: "/fasilitas", title: "Fasilitas", text: `${settings.facilities.length} fasilitas di dalam kos dan ${services} layanan berbayar seperti laundry.` },
-    { href: "/biaya", title: "Biaya", text: `Bulanan atau tahunan (bayar ${settings.yearlyMonths} bulan untuk 12). Deposit ${settings.depositMonths}× sewa.` },
+    { href: "/biaya", title: "Biaya", text: `Bulanan atau tahunan, bayar ${settings.yearlyMonths} bulan untuk 12. Deposit ${settings.depositMonths}× sewa.` },
     {
       href: "/lokasi",
       title: "Lokasi",
-      text: nearby.length ? `${nearby.map((n) => `${n.name} ${n.distance}`).join(", ")}.` : settings.address,
+      text: nearby.length ? nearby.map((n) => `${n.name}, ${n.distance}`).join("; ") + "." : settings.address,
     },
-    { href: "/aturan", title: "Aturan", text: `${settings.houseRules.length} aturan rumah, plus cara mendaftarkan tamu menginap.` },
+    { href: "/aturan", title: "Aturan", text: `${settings.houseRules.length} aturan rumah dan cara mendaftarkan tamu menginap.` },
     { href: "/faq", title: "FAQ", text: `${faqCount} pertanyaan yang paling sering ditanyakan calon penghuni.` },
   ];
 
   return (
     <>
-      <section className="card" style={{ padding: "34px 30px 28px", marginBottom: 20 }}>
-        <h1 style={{ fontSize: "clamp(30px,4.5vw,46px)", maxWidth: "16ch" }}>{settings.tagline}</h1>
-        <p className="muted" style={{ maxWidth: "58ch", margin: "14px 0 20px" }}>
-          {settings.address}. Tanya apa saja ke asisten kami, 24 jam, langsung dibalas.
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya kamar kosong</OpenChatButton>
-          <a className="btn" href="/kamar">Lihat semua kamar</a>
+      <section className="hero">
+        <div className="hero-text">
+          <h1 className="hero-title">{settings.tagline}</h1>
+          <p className="hero-sub">
+            {settings.address}. Tanya apa saja ke asisten kami, kapan saja, langsung dibalas.
+          </p>
+          <div className="hero-actions">
+            <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya kamar kosong</OpenChatButton>
+            <a className="btn" href="/kamar">Lihat semua kamar</a>
+          </div>
+          <dl className="hero-facts">
+            <div><dt>Mulai per bulan</dt><dd>{rp(cheapest)}</dd></div>
+            <div><dt>Kamar tersedia</dt><dd>{available} dari {rooms.length}</dd></div>
+            <div><dt>Listrik termasuk</dt><dd>{settings.electricQuota} kWh</dd></div>
+          </dl>
         </div>
-        <div style={{ display: "flex", gap: 28, flexWrap: "wrap", borderTop: "1px solid var(--line)", marginTop: 24, paddingTop: 18 }}>
-          <Fact value={rp(cheapest)} label="mulai per bulan" />
-          <Fact value={`${available} / ${rooms.length}`} label="kamar tersedia" />
-          <Fact value={`${settings.electricQuota} kWh`} label="listrik termasuk" />
-          <Fact value={`tanggal ${settings.dueDayOfMonth}`} label="jatuh tempo sewa" />
+        <div className="hero-arch">
+          <PhotoSlot photo={heroPhoto ?? null} alt={settings.name} ratio="3 / 4" />
         </div>
       </section>
 
-      <section style={{ marginBottom: 24 }}>
-        <PhotoGrid photos={gallery} slots={4} alt={settings.name} />
+      <section className="home-gallery" aria-label="Foto kos">
+        <PhotoGrid photos={restOfGallery} slots={3} alt={settings.name} min={200} />
       </section>
 
-      <section className="link-grid" aria-label="Info kos">
-        {cards.map((c) => (
-          <a key={c.href} href={c.href} className="link-card">
-            <strong>{c.title}</strong>
-            <span className="small muted">{c.text}</span>
-            <span className="more">Lihat {c.title.toLowerCase()} →</span>
+      <nav className="page-index" aria-label="Info kos">
+        {pages.map((p) => (
+          <a key={p.href} href={p.href} className="page-index-row">
+            <span className="page-index-title">{p.title}</span>
+            <span className="page-index-text">{p.text}</span>
           </a>
         ))}
-      </section>
+      </nav>
     </>
   );
 }

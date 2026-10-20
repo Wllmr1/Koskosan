@@ -35,9 +35,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             ))}
             <a href="/masuk">Masuk penghuni</a>
           </nav>
-          {name}
-          {settings?.address ? ` · ${settings.address}` : ""}
-          <br />
+          <strong className="footer-name">{name}</strong>
+          {settings?.address && <div>{settings.address}</div>}
           Data pribadi penyewa disimpan terenkripsi sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.
         </div>
       </footer>

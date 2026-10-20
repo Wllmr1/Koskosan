@@ -13,8 +13,8 @@ const STATUS_LABEL: Record<RoomStatus, string> = {
 /** Title block at the top of every inner page. */
 export function PageHead({ title, sub }: { title: string; sub?: string }) {
   return (
-    <header style={{ margin: "6px 0 20px" }}>
-      <h1 style={{ fontSize: "clamp(26px,4vw,38px)" }}>{title}</h1>
+    <header className="page-head">
+      <h1>{title}</h1>
       {sub && <p className="muted" style={{ margin: "8px 0 0", maxWidth: "62ch" }}>{sub}</p>}
     </header>
   );
@@ -22,8 +22,8 @@ export function PageHead({ title, sub }: { title: string; sub?: string }) {
 
 export function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="card" style={{ padding: 26, marginBottom: 20 }}>
-      <h2 style={{ fontSize: 20 }}>{title}</h2>
+    <section className="panel">
+      <h2 className="panel-title">{title}</h2>
       {sub ? <p className="muted small" style={{ margin: "4px 0 18px" }}>{sub}</p> : <div style={{ height: 14 }} />}
       {children}
     </section>
@@ -55,16 +55,17 @@ export function RoomCard({ room }: { room: Room & { photos: Photo[] } }) {
   return (
     <a href={`/kamar/${encodeURIComponent(room.code)}`} className="room-card">
       <PhotoSlot photo={room.photos[0] ?? null} alt={`Kamar ${room.code}`} />
-      <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 16, marginTop: 10 }}>
-        {room.code} · {room.type}
+      <div className="room-card-head">
+        <span className="room-card-name">Kamar {room.code}</span>
+        <span className="room-card-type">{room.type}</span>
       </div>
+      <p className="room-price">
+        {rp(room.monthlyPrice)} <span>per bulan</span>
+      </p>
       <div className="small muted">
-        {room.sizeLabel} · lantai {room.floor} · {room.bathroom}
+        {room.sizeLabel}, lantai {room.floor}, {room.bathroom.toLowerCase()}
       </div>
-      <div style={{ fontWeight: 600, marginTop: 6 }}>
-        {rp(room.monthlyPrice)} <span className="small muted">/bulan</span>
-      </div>
-      <div className="small muted" style={{ marginTop: 4 }}>{room.extras}</div>
+      <div className="small muted" style={{ marginTop: 2 }}>{room.extras}</div>
       <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span className={`pill ${room.status === "AVAILABLE" ? "pill-ok" : room.status === "BOOKED" ? "pill-warn" : "pill-mute"}`}>
           {STATUS_LABEL[room.status]}

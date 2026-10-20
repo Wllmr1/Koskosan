@@ -1,17 +1,20 @@
 :root{
-  --ink:#16192a; --ink-2:#4b5069; --ink-3:#818799; --paper:#fff; --wash:#f3f3fa;
-  --brand:#3b2cc9; --brand-soft:#eceafb; --gold:#b57a0b; --gold-soft:#fbf1dc;
-  --ok:#1f7a4d; --ok-soft:#e3f4eb; --bad:#b23046; --bad-soft:#fbe9ec; --line:#e1e1ee;
-  --radius:12px;
-  --display:"Space Grotesk",system-ui,sans-serif;
-  --sans:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* Orchid house: plum ink, a muted orchid, brass for fine details, porcelain ground. */
+  --ink:#2a1f2d; --ink-2:#5b4f5e; --ink-3:#8a7f8c; --paper:#fff; --wash:#f6f5f7;
+  --brand:#7d4e74; --brand-soft:#f1e8ef; --gold:#a88447; --gold-soft:#f6efe2;
+  --brass:#a88447; --btn:#2a1f2d; --btn-ink:#fff;
+  --ok:#2f6b4f; --ok-soft:#e5f1ea; --bad:#a33a4c; --bad-soft:#f8e8eb; --line:#e4dee5;
+  --radius:10px;
+  --display:"Bodoni Moda",Didot,"Bodoni 72",Georgia,serif;
+  --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
   :root{
-    --ink:#ecedf6; --ink-2:#afb4c9; --ink-3:#7c8298; --paper:#181b2b; --wash:#10121e;
-    --brand:#9a8cff; --brand-soft:#252247; --gold:#e7b65c; --gold-soft:#332813;
-    --ok:#68c79a; --ok-soft:#14301f; --bad:#ee8296; --bad-soft:#38141d; --line:#2a2e45;
+    --ink:#efe9f0; --ink-2:#c2b7c4; --ink-3:#958a97; --paper:#211a24; --wash:#17121a;
+    --brand:#c99bbf; --brand-soft:#33263a; --gold:#cba86c; --gold-soft:#332a1c;
+    --brass:#cba86c; --btn:#e9dcea; --btn-ink:#2a1f2d;
+    --ok:#7cc4a0; --ok-soft:#1b2f25; --bad:#ec8f9f; --bad-soft:#3a1a21; --line:#3a2f3e;
     color-scheme:dark;
   }
 }
@@ -19,7 +22,7 @@
 html,body{margin:0;padding:0}
 body{background:var(--wash);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;
   -webkit-font-smoothing:antialiased}
-h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.02em;line-height:1.15;margin:0}
+h1,h2,h3{font-family:var(--display);font-weight:500;letter-spacing:-.01em;line-height:1.12;margin:0}
 a{color:var(--brand)}
 button{font:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
@@ -28,7 +31,7 @@ button{font:inherit;cursor:pointer}
 .btn{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:var(--radius);
   padding:10px 16px;font-size:15px;text-decoration:none;display:inline-block}
 .btn:hover{border-color:var(--ink-3)}
-.btn-pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.btn-pri{background:var(--btn);border-color:var(--btn);color:var(--btn-ink);font-weight:600}
 .btn-pri:disabled{opacity:.6;cursor:not-allowed}
 .pill{font-size:12.5px;padding:3px 10px;border-radius:999px;white-space:nowrap;display:inline-block}
 .pill-ok{background:var(--ok-soft);color:var(--ok)}
@@ -46,7 +49,7 @@ td small{display:block;color:var(--ink-3)}
 
 /* ── website chat ─────────────────────────────────────────────── */
 .chat-fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:50;
-  border:0;border-radius:999px;background:var(--brand);color:#fff;font-weight:600;padding:13px 20px;
+  border:0;border-radius:999px;background:var(--btn);color:var(--btn-ink);font-weight:600;padding:13px 20px;
   box-shadow:0 8px 24px rgba(22,25,42,.22);display:flex;gap:8px;align-items:center}
 .chat-panel{position:fixed;right:20px;bottom:20px;z-index:50;width:min(390px,calc(100vw - 32px));
   height:min(600px,calc(100vh - 40px));display:flex;flex-direction:column;background:var(--paper);
@@ -60,7 +63,7 @@ td small{display:block;color:var(--ink-3)}
 .chat-close{background:none;border:0;font-size:24px;line-height:1;color:var(--ink-3);padding:0 4px}
 .chat-list{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--wash)}
 .chat-bubble{max-width:85%;padding:9px 12px;border-radius:14px;font-size:14.5px;line-height:1.5;overflow-wrap:anywhere}
-.chat-user{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+.chat-user{align-self:flex-end;background:var(--btn);color:var(--btn-ink);border-bottom-right-radius:4px}
 .chat-assistant{align-self:flex-start;background:var(--paper);border:1px solid var(--line);border-bottom-left-radius:4px}
 .chat-typing{color:var(--ink-3);font-style:italic}
 .chat-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -133,3 +136,61 @@ td small{display:block;color:var(--ink-3)}
   .site-menu{margin-left:auto}
   .site-menu nav{right:0}
 }
+
+/* ── orchid-house look: serif display, brass details, open space ── */
+.site-header{background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px)}
+.site-brand{font-size:21px;font-weight:500;letter-spacing:.01em}
+.site-link{font-size:14.5px;letter-spacing:.01em}
+.site-link.is-active{background:transparent;color:var(--brand);box-shadow:inset 0 -1.5px 0 var(--brass);border-radius:0;font-weight:500}
+.btn{border-radius:var(--radius);padding:11px 18px;font-weight:500}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,5vw,64px);align-items:end;
+  padding:clamp(12px,3vw,36px) 0 clamp(28px,5vw,56px)}
+.hero-title{font-size:clamp(40px,6.2vw,76px);line-height:1.02;letter-spacing:-.02em;font-weight:500;max-width:13ch}
+.hero-sub{color:var(--ink-2);font-size:17.5px;max-width:46ch;margin:22px 0 28px}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.hero-facts{display:flex;flex-wrap:wrap;gap:12px 40px;margin:36px 0 0;padding-top:20px;border-top:1px solid var(--brass)}
+.hero-facts div{min-width:120px}
+.hero-facts dt{font-size:13px;color:var(--ink-3)}
+.hero-facts dd{margin:2px 0 0;font-family:var(--display);font-size:26px;font-weight:500}
+.hero-arch .photo-tile,.hero-arch .photo-slot{border-radius:999px 999px 18px 18px;max-height:560px}
+.hero-arch .photo-slot{border-color:var(--brass)}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .hero-arch{order:-1;max-width:320px;margin:0 auto;width:100%}
+  .hero-arch .photo-tile,.hero-arch .photo-slot{max-height:380px}
+}
+.home-gallery{margin:0 0 clamp(36px,6vw,64px)}
+.photo-tile,.photo-slot{border-radius:6px}
+
+.page-index{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));column-gap:48px}
+.page-index-row{display:grid;grid-template-columns:120px 1fr;gap:16px;padding:20px 0;border-top:1px solid var(--line);
+  color:inherit;text-decoration:none;align-items:baseline}
+.page-index-row:hover .page-index-title{color:var(--brand)}
+.page-index-title{font-family:var(--display);font-size:24px;font-weight:500}
+.page-index-text{color:var(--ink-2);font-size:15px}
+@media (max-width:480px){ .page-index-row{grid-template-columns:1fr;gap:4px} }
+
+.page-head{margin:8px 0 30px;max-width:66ch}
+.page-head h1{font-size:clamp(34px,5vw,56px);letter-spacing:-.02em}
+.page-head p{font-size:17px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:clamp(20px,3vw,32px);margin-bottom:22px}
+.panel-title{font-size:26px;font-weight:500}
+
+.room-grid{gap:34px 22px;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
+.room-card{border:0;padding:0;background:transparent}
+.room-card:hover .room-card-name{color:var(--brand)}
+.room-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:14px}
+.room-card-name{font-family:var(--display);font-size:22px;font-weight:500}
+.room-card-type{font-size:13px;color:var(--ink-3)}
+.room-price{font-family:var(--display);font-size:20px;margin:4px 0 8px;display:inline-block;
+  padding-bottom:3px;border-bottom:1px solid var(--brass)}
+.room-price span{font-family:var(--sans);font-size:13px;color:var(--ink-3)}
+.room-price-lg{font-size:32px;margin:0}
+
+.dot-list li::before{background:var(--brass);width:5px;height:5px}
+.photo-slot{color:var(--ink-3);background:repeating-linear-gradient(135deg,var(--wash) 0 14px,var(--paper) 14px 28px)}
+.site-footer{background:var(--paper)}
+.footer-name{display:block;font-family:var(--display);font-size:19px;font-weight:500;color:var(--ink);margin:8px 0 2px}
+.link-card strong{font-weight:500}
+.room-price-lg{justify-self:start}
