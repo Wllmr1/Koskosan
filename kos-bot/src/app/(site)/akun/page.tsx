@@ -94,7 +94,9 @@ export default async function AccountPage() {
           <p style={{ margin: "10px 0 0" }}>
             {a.electricity.usedKwh} dari {a.electricity.quotaKwh} kWh terpakai.{" "}
             {a.electricity.overKwh > 0
-              ? `Lebih ${a.electricity.overKwh} kWh, perkiraan biaya tambahan ${rp(a.electricity.extraCharge)} (${rp(a.electricity.rate)}/kWh), ditagih bulan depan.`
+              ? `Lebih ${a.electricity.overKwh} kWh, biaya tambahan ${rp(a.electricity.extraCharge)} (${rp(a.electricity.rate)}/kWh)${
+                  a.electricity.billed ? ", sudah ditagih — lihat Tagihan belum lunas di atas." : ", akan ditagih setelah meteran bulan ini ditutup."
+                }`
               : `Sisa ${a.electricity.remainingKwh} kWh.`}
           </p>
         </Section>

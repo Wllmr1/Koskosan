@@ -112,12 +112,21 @@ describe("loadRenterAccount", () => {
     const rent = acct.bills.find((b) => b.description === "Sewa bulan ini")!;
     expect(rent.overdue).toBe(true);
     expect(rent.lateFee).toBe(250_000); // 10 days × Rp25.000, capped at Rp250.000
-    expect(acct.totalOwed).toBe(1_850_000 + 50_000);
+    expect(acct.bills.filter((b) => b.kind !== InvoiceKind.UTILITY_OVERAGE).reduce((s, b) => s + b.remaining, 0)).toBe(1_850_000 + 50_000);
   });
 
   it("works out the electricity over-limit", async () => {
     const acct = await loadRenterAccount(tenantId);
     expect(acct.electricity).toMatchObject({ usedKwh: 112.5, quotaKwh: 100, remainingKwh: 0, overKwh: 12.5, extraCharge: 21_250 });
+  });
+
+  it("knows when this month's over-limit has already been billed", async () => {
+    expect((await loadRenterAccount(tenantId)).electricity?.billed).toBe(false);
+    const lease = await prisma.lease.findFirstOrThrow({ where: { tenantId, status: "ACTIVE" } });
+    await prisma.invoice.create({
+      data: { code: `INV-T-${uniq()}`, leaseId: lease.id, kind: InvoiceKind.UTILITY_OVERAGE, period: firstOfMonth(), description: "Kelebihan listrik", amount: 21_250, dueDate: new Date(Date.now() + 20 * DAY) },
+    });
+    expect((await loadRenterAccount(tenantId)).electricity?.billed).toBe(true);
   });
 
   it("includes payment history, guests and complaints", async () => {

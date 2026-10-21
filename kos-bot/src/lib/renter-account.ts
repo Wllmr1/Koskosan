@@ -26,7 +26,7 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
   const shown = active ?? tenant.leases[0] ?? null;
   const mine = { OR: [{ lease: { tenantId } }, { guestStay: { tenantId } }] };
 
-  const [openInvoices, payments, guests, tickets, reading] = await Promise.all([
+  const [openInvoices, payments, guests, tickets, reading, overageBill] = await Promise.all([
     prisma.invoice.findMany({
       where: { ...mine, status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL] } },
       orderBy: { dueDate: "asc" },
@@ -46,6 +46,12 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
     prisma.ticket.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 10 }),
     active
       ? prisma.utilityPeriod.findUnique({ where: { roomId_period: { roomId: active.roomId, period: firstOfMonth(now) } } })
+      : null,
+    active
+      ? prisma.invoice.findFirst({
+          where: { leaseId: active.id, kind: InvoiceKind.UTILITY_OVERAGE, period: firstOfMonth(now) },
+          select: { code: true },
+        })
       : null,
   ]);
 
@@ -68,6 +74,7 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
           rate: reading.ratePerKwh,
           extraCharge: Math.round(overKwh * reading.ratePerKwh),
           updatedAt: reading.updatedAt,
+          billed: Boolean(overageBill),
         };
       })()
     : null;

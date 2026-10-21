@@ -61,7 +61,14 @@ export async function createLocalInvoice(data: {
   period?: Date;
 }) {
   if (!Number.isInteger(data.amount) || data.amount <= 0) throw new Error("Invalid invoice amount.");
-  const prefix = data.kind === InvoiceKind.GUEST ? "GUEST" : data.kind === InvoiceKind.ONBOARDING ? "NEW" : "RENT";
+  const prefix =
+    data.kind === InvoiceKind.GUEST
+      ? "GUEST"
+      : data.kind === InvoiceKind.ONBOARDING
+        ? "NEW"
+        : data.kind === InvoiceKind.UTILITY_OVERAGE
+          ? "LISTRIK"
+          : "RENT";
   return prisma.invoice.create({
     data: {
       code: await nextInvoiceCode(prefix),

@@ -80,6 +80,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <a className="btn" href="/" style={{ marginLeft: "auto" }}>Lihat situs</a>
         <a className="btn" href="/admin/data">Data kos</a>
         <a className="btn" href="/admin/percakapan">Percakapan</a>
+        <a className="btn" href="/admin/penghuni/baru">Tambah penghuni</a>
+        <a className="btn" href="/admin/meteran">Catat meteran</a>
         <a className="btn" href="/api/admin/logout">Keluar</a>
       </header>
 
