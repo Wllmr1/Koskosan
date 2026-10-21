@@ -3,13 +3,18 @@ import { botChatLink } from "@/lib/whatsapp";
 import { SITE_NAV } from "@/lib/site";
 import OpenChatButton from "@/components/OpenChatButton";
 import SiteNav from "@/components/site/SiteNav";
+import { currentRenter } from "@/lib/renter-auth";
 
 export const dynamic = "force-dynamic";
 
 /** Header and footer shared by every public page. */
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const settings = await prisma.propertySetting.findUnique({ where: { id: "default" } });
+  const [settings, renter] = await Promise.all([
+    prisma.propertySetting.findUnique({ where: { id: "default" } }),
+    currentRenter(),
+  ]);
   const name = settings?.name ?? "Kos";
+  const account = renter ? { href: "/akun", label: "Akun saya" } : { href: "/masuk", label: "Masuk penghuni" };
   const waLink = botChatLink("Halo, saya cari kos dekat kampus");
 
   return (
@@ -17,8 +22,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <header className="site-header">
         <div className="wrap">
           <a href="/" className="site-brand">{name}</a>
-          <SiteNav />
+          <SiteNav account={account} />
           <div className="site-actions">
+            <a className="btn" href={account.href}>{account.label}</a>
             {waLink && <a className="btn" href={waLink}>Chat di WhatsApp</a>}
             <OpenChatButton>Chat sekarang</OpenChatButton>
           </div>
@@ -33,7 +39,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             {SITE_NAV.map((item) => (
               <a key={item.href} href={item.href}>{item.label}</a>
             ))}
-            <a href="/masuk">Masuk penghuni</a>
+            <a href={account.href}>{account.label}</a>
           </nav>
           <strong className="footer-name">{name}</strong>
           {settings?.address && <div>{settings.address}</div>}

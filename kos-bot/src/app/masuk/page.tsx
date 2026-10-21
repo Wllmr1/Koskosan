@@ -27,7 +27,7 @@ export default async function LoginPage({
           <>
             <p className="muted">Kakak sudah masuk sebagai {renter.fullName}.</p>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <a className="btn btn-pri" href="/?chat=1">Buka chat</a>
+              <a className="btn btn-pri" href="/akun">Akun saya</a>
               <form method="post" action="/api/auth/logout">
                 <button className="btn" type="submit">Keluar</button>
               </form>

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   await prisma.rateCounter.deleteMany({ where: { key: `login-phone:${tenant.phoneE164}:${bucket}` } });
 
   await prisma.auditLog.create({ data: { actor: "tenant", action: "renter:login", tenantId: tenant.id } });
-  const res = NextResponse.redirect(new URL("/?chat=1", req.url), { status: 303 });
+  const res = NextResponse.redirect(new URL("/akun", req.url), { status: 303 });
   setRenterCookie(res, renterCookieValue(tenant.id, tenant.sessionVersion));
   return res;
 }
