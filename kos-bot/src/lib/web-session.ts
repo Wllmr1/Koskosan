@@ -10,7 +10,11 @@ const ANON_ID = /^[A-Za-z0-9_-]{20,64}$/;
 /** The anonymous visitor id from the signed cookie, or null (missing, tampered or expired). */
 export async function readAnonId(): Promise<string | null> {
   const jar = await cookies();
-  const id = readSigned(jar.get(CHAT_COOKIE)?.value);
+  return anonIdFromCookie(jar.get(CHAT_COOKIE)?.value);
+}
+
+export function anonIdFromCookie(value: string | undefined): string | null {
+  const id = readSigned(value);
   return id && ANON_ID.test(id) ? id : null;
 }
 

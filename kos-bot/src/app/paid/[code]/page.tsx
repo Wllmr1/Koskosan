@@ -1,4 +1,4 @@
-import { InvoiceStatus } from "@prisma/client";
+import { InvoiceKind, InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +12,12 @@ export const metadata = { robots: { index: false, follow: false } };
 export default async function PaidPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const invoice = /^[A-Z0-9-]{6,40}$/i.test(code)
-    ? await prisma.invoice.findUnique({ where: { code: code.toUpperCase() }, select: { code: true, status: true } })
+    ? await prisma.invoice.findUnique({ where: { code: code.toUpperCase() }, select: { code: true, status: true, kind: true } })
     : null;
 
   const paid = invoice?.status === InvoiceStatus.PAID;
+  // A new renter who signed up on the website may never have used the chat.
+  const newRenter = paid && invoice?.kind === InvoiceKind.ONBOARDING;
   const chatLink = "/?chat=1";
 
   return (
@@ -37,9 +39,17 @@ export default async function PaidPage({ params }: { params: Promise<{ code: str
             ? `Terima kasih kak. Konfirmasi untuk ${invoice!.code} sudah kami kirim ke chat.`
             : "Biasanya hanya beberapa detik. Konfirmasi akan masuk ke chat begitu pembayaran tercatat."}
         </p>
-        <a className="btn btn-pri" href={chatLink} style={{ width: "100%" }}>
-          Kembali ke chat
-        </a>
+        {newRenter ? (
+          <div style={{ display: "grid", gap: 10 }}>
+            <a className="btn btn-pri" href="/masuk">Masuk ke akun penghuni</a>
+            <a className="btn" href={chatLink}>Kembali ke chat</a>
+            <p className="small muted" style={{ margin: 0 }}>Masuk pakai nomor HP dan password yang tadi kakak buat.</p>
+          </div>
+        ) : (
+          <a className="btn btn-pri" href={chatLink} style={{ width: "100%" }}>
+            Kembali ke chat
+          </a>
+        )}
       </div>
     </main>
   );

@@ -73,6 +73,7 @@ export function RoomCard({ room }: { room: Room & { photos: Photo[] } }) {
         <span className="small muted">
           {room.status === "AVAILABLE" ? "bisa masuk sekarang" : room.availableOn ? `kosong ${niceDate(room.availableOn)}` : ""}
         </span>
+        {room.status === "AVAILABLE" && <span className="room-card-cta">Sewa</span>}
       </div>
     </a>
   );

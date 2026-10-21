@@ -1,11 +1,50 @@
 import { ApplicationStatus, LeasePlan, RoomStatus } from "@prisma/client";
 import { prisma } from "./prisma";
-import { sha256 } from "./crypto";
+import { newToken, sha256 } from "./crypto";
 import { addMonths } from "./money";
 import { deleteObject } from "./storage";
 import type { ContractData } from "./contract";
 
 export const APPLICATION_TTL_MS = 48 * 3_600_000;
+
+export class ApplicationError extends Error {
+  constructor(
+    readonly code: "not_found" | "unavailable",
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Starts the secure sign-up flow for one room. Used by the assistant's
+ * start_application tool and by the "Sewa kamar ini" button, so both follow
+ * the same rules: the room must exist, be visible and be available. Returns
+ * the raw form token (only its hash is stored).
+ */
+export async function createApplication(opts: { contactId: string | null; roomCode: string; plan: LeasePlan }) {
+  const code = opts.roomCode.trim().toUpperCase().slice(0, 20);
+  const room = await prisma.room.findUnique({ where: { code } });
+  if (!room || room.hidden) throw new ApplicationError("not_found", `No room called ${code}.`);
+  if (room.status !== RoomStatus.AVAILABLE) {
+    throw new ApplicationError("unavailable", `Room ${room.code} is ${room.status.toLowerCase()}.`);
+  }
+
+  const { raw, hash } = newToken();
+  const count = await prisma.application.count();
+  const reference = `APP-${String(1000 + count + 1)}`;
+  await prisma.application.create({
+    data: {
+      reference,
+      tokenHash: hash,
+      contactId: opts.contactId,
+      roomId: room.id,
+      plan: opts.plan,
+      expiresAt: new Date(Date.now() + APPLICATION_TTL_MS),
+    },
+  });
+  return { reference, token: raw, room };
+}
 
 /** Looks up an application by the raw token from the URL. Never stores the raw value. */
 export async function findApplicationByToken(rawToken: string) {

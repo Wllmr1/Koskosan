@@ -17,6 +17,7 @@ import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { notifyOwner } from "@/lib/notify";
 import { startHandoff, type ChatCtx } from "./context";
 import { addAction } from "./actions";
+import { ApplicationError, createApplication } from "@/lib/application";
 
 export type ToolDef = {
   name: string;
@@ -245,31 +246,21 @@ export const TOOLS: ToolDef[] = [
       required: ["room_code"],
     },
     async run(input, ctx) {
-      const code = str(input.room_code, 20).toUpperCase();
-      const room = await prisma.room.findUnique({ where: { code } });
-      if (!room || room.hidden) throw new Error(`No room called ${code}. Call search_rooms and offer a real one.`);
-      if (room.status !== RoomStatus.AVAILABLE) {
-        throw new Error(`Room ${room.code} is ${room.status.toLowerCase()}. Offer an available room instead.`);
-      }
       if (await overLimit("apply", ctx.contactId, 5, 3_600_000)) {
         throw new Error("Too many application links already sent to this person in the last hour.");
       }
-
       const plan = str(input.plan, 10) === "tahunan" ? LeasePlan.YEARLY : LeasePlan.MONTHLY;
-      const { raw, hash } = newToken();
-      const count = await prisma.application.count();
-      const reference = `APP-${String(1000 + count + 1)}`;
-
-      await prisma.application.create({
-        data: {
-          reference,
-          tokenHash: hash,
-          contactId: ctx.contactId,
-          roomId: room.id,
-          plan,
-          expiresAt: new Date(Date.now() + 48 * 3_600_000),
-        },
-      });
+      let created: Awaited<ReturnType<typeof createApplication>>;
+      try {
+        created = await createApplication({ contactId: ctx.contactId, roomCode: str(input.room_code, 20), plan });
+      } catch (e) {
+        if (e instanceof ApplicationError && e.code === "not_found") {
+          throw new Error(`${e.message} Call search_rooms and offer a real one.`);
+        }
+        if (e instanceof ApplicationError) throw new Error(`${e.message} Offer an available room instead.`);
+        throw e;
+      }
+      const { reference, token: raw, room } = created;
 
       addAction(ctx, "Buka formulir", `/apply/${raw}`);
       await audit(ctx, "tool:start_application", { reference, room: room.code, plan });
