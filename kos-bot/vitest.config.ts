@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
@@ -18,6 +19,9 @@ export default defineConfig(({ mode }) => {
       env: {
         ...fileEnv,
         DATABASE_URL: fileEnv.TEST_DATABASE_URL,
+        // Files written by tests (KTP, contracts, photos) never land in the real ./storage.
+        STORAGE_DRIVER: "local",
+        STORAGE_LOCAL_DIR: path.join(os.tmpdir(), "kos-bot-test-storage"),
         APP_URL: "http://localhost:3000",
         // Integrations are always off in tests: nothing ever reaches WhatsApp, Xendit or Resend.
         WA_PHONE_NUMBER_ID: "",
