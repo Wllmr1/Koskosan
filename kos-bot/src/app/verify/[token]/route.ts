@@ -38,15 +38,13 @@ function html(message: string, ok: boolean) {
   const body = `<!doctype html><html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Verifikasi akun</title>
 <style>
-:root{color-scheme:light dark}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f3fa;color:#16192a;
+:root{color-scheme:only light}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f1e9dc;color:#2e241b;
 font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
-@media(prefers-color-scheme:dark){body{background:#10121e;color:#ecedf6}.card{background:#181b2b!important;border-color:#2a2e45!important}}
-.card{background:#fff;border:1px solid #e1e1ee;border-radius:20px;padding:36px 28px;max-width:420px;text-align:center}
+.card{background:#fbf8f2;border:1px solid #e2d6c4;border-radius:20px;padding:36px 28px;max-width:420px;text-align:center}
 .icon{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;font-size:30px;
 background:${ok ? "#e3f4eb" : "#fbe9ec"};color:${ok ? "#1f7a4d" : "#b23046"}}
-h1{font-size:19px;margin:0 0 8px}p{margin:0;color:#4b5069;font-size:15px;line-height:1.6}
-@media(prefers-color-scheme:dark){p{color:#afb4c9}}
+h1{font-size:19px;margin:0 0 8px}p{margin:0;color:#5e5144;font-size:15px;line-height:1.6}
 </style></head><body><div class="card"><div class="icon">${ok ? "✓" : "!"}</div>
 <h1>${ok ? "Berhasil" : "Tidak berhasil"}</h1><p>${message}</p></div></body></html>`;
   return new NextResponse(body, {

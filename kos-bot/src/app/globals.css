@@ -1,22 +1,14 @@
 :root{
-  /* Orchid house: plum ink, a muted orchid, brass for fine details, porcelain ground. */
-  --ink:#2a1f2d; --ink-2:#5b4f5e; --ink-3:#8a7f8c; --paper:#fff; --wash:#f6f5f7;
-  --brand:#7d4e74; --brand-soft:#f1e8ef; --gold:#a88447; --gold-soft:#f6efe2;
-  --brass:#a88447; --btn:#2a1f2d; --btn-ink:#fff;
-  --ok:#2f6b4f; --ok-soft:#e5f1ea; --bad:#a33a4c; --bad-soft:#f8e8eb; --line:#e4dee5;
+  /* Beige: warm sand ground, ivory panels, espresso text, walnut links, brass details.
+     One theme, day and night — no dark-mode variant on purpose. */
+  --ink:#2e241b; --ink-2:#5e5144; --ink-3:#8c7d6c; --paper:#fbf8f2; --wash:#f1e9dc;
+  --brand:#7a5230; --brand-soft:#efe3d3; --gold:#a07a3e; --gold-soft:#f4e9d6;
+  --brass:#a88447; --btn:#3a2c20; --btn-ink:#fbf8f2;
+  --ok:#3f6b46; --ok-soft:#e6eedd; --bad:#a33a35; --bad-soft:#f6e3dc; --line:#e2d6c4;
   --radius:10px;
   --display:"Bodoni Moda",Didot,"Bodoni 72",Georgia,serif;
   --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  color-scheme:light;
-}
-@media (prefers-color-scheme:dark){
-  :root{
-    --ink:#efe9f0; --ink-2:#c2b7c4; --ink-3:#958a97; --paper:#211a24; --wash:#17121a;
-    --brand:#c99bbf; --brand-soft:#33263a; --gold:#cba86c; --gold-soft:#332a1c;
-    --brass:#cba86c; --btn:#e9dcea; --btn-ink:#2a1f2d;
-    --ok:#7cc4a0; --ok-soft:#1b2f25; --bad:#ec8f9f; --bad-soft:#3a1a21; --line:#3a2f3e;
-    color-scheme:dark;
-  }
+  color-scheme:only light;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
