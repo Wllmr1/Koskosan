@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { fillSlots, isActive, SITE_NAV } from "@/lib/site";
+import { brandLine, fillSlots, isActive, SITE_NAV } from "@/lib/site";
 
 describe("site navigation", () => {
   it("lists the seven pages in menu order", () => {
@@ -29,5 +31,29 @@ describe("photo slots", () => {
 
   it("is all placeholders when there are no photos", () => {
     expect(fillSlots([], 2)).toEqual([null, null]);
+  });
+});
+
+describe("site shell", () => {
+  it("keeps the menu order", () => {
+    expect(SITE_NAV.map((n) => n.label)).toEqual(["Beranda", "Kamar", "Fasilitas", "Biaya", "Lokasi", "Aturan", "FAQ"]);
+  });
+
+  it("is light only: the stylesheet has no prefers-color-scheme", () => {
+    const css = readFileSync(join(process.cwd(), "src/app/rk.css"), "utf8");
+    expect(css).not.toContain("prefers-color-scheme");
+  });
+
+  it("scopes every stylesheet rule under .rk", () => {
+    const css = readFileSync(join(process.cwd(), "src/app/rk.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const selectors = [...css.matchAll(/(?:^|[}\n])\s*([^{}@\n][^{}]*)\{/g)].map((m) => m[1].trim());
+    expect(selectors.length).toBeGreaterThan(50);
+    for (const sel of selectors) for (const part of sel.split(",")) expect(part.trim().startsWith(".rk")).toBe(true);
+  });
+
+  it("puts the tagline under the wordmark, or the tagline alone when it is long", () => {
+    expect(brandLine("Hunian butik dekat kampus")).toBe("Kost · Hunian butik dekat kampus");
+    const long = "Kos mahasiswa putri dengan kontrak digital";
+    expect(brandLine(long)).toBe(long);
   });
 });

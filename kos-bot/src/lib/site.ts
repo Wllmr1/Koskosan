@@ -19,3 +19,9 @@ export function isActive(pathname: string, href: string): boolean {
 export function fillSlots<T>(photos: T[], count: number): (T | null)[] {
   return photos.length >= count ? photos : [...photos, ...Array<null>(count - photos.length).fill(null)];
 }
+
+/** Short line under the wordmark: "Kost · tagline", or just the tagline when that would be too long for the header. */
+export function brandLine(tagline: string): string {
+  const t = tagline.trim();
+  return t.length > 32 ? t : `Kost · ${t}`;
+}
