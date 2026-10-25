@@ -11,7 +11,7 @@ export function contractLabel(months: number): string {
 
 /** A chosen length from a form field or tool input: exactly 6, 12 or 24, else null. */
 export function parseContractMonths(value: unknown): ContractMonths | null {
-  const n = typeof value === "number" ? value : typeof value === "string" && /^\d{1,2}$/.test(value) ? Number(value) : NaN;
+  const n = typeof value === "number" ? value : typeof value === "string" && /^(6|12|24)$/.test(value) ? Number(value) : NaN;
   return CONTRACT_MONTHS.find((m) => m === n) ?? null;
 }
 

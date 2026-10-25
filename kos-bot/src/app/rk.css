@@ -218,13 +218,11 @@
 .rk .thumbs button{display:block;padding:0;border:0;background:none;opacity:.62;cursor:pointer}
 .rk .thumbs button.on,.rk .thumbs button:hover{opacity:1}
 .rk .thumbs button img{opacity:1}
-.rk .opts{flex-direction:column;align-items:stretch}
-.rk .opts label{position:relative;display:block}
-.rk .opts input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.rk .opts label>span{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:1px solid var(--line-2);background:var(--bg);font-size:14.5px;text-align:left}
-.rk .opts label small{color:var(--ink-3);font-size:13.5px}
-.rk .opts label b{font-weight:500;font-variant-numeric:tabular-nums}
-.rk .opts input:checked+span{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.rk .opts label{position:relative;flex:1 1 72px;display:block}
+.rk .opts input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.rk .opts label>span{display:flex;align-items:center;justify-content:center;min-height:46px;padding:0 8px;border:1px solid var(--line-2);background:var(--bg);font-size:14px;text-align:center}
+.rk .opts label>span strong{font-weight:inherit}
+.rk .opts input:checked+span{background:var(--btn);color:var(--btn-fg);border-color:var(--btn)}
 .rk .opts input:focus-visible+span{outline:2px solid var(--ink);outline-offset:2px}
 .rk .rent .form label{margin-top:0}
 .rk .tri .ph,.rk .type .ph{display:flex;align-items:center;justify-content:center;background:var(--photo);color:var(--ink-3);font-size:12px;letter-spacing:.2em;text-transform:uppercase}

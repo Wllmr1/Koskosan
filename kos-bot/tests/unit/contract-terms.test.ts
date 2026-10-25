@@ -16,7 +16,7 @@ describe("contract lengths", () => {
     expect(parseContractMonths(12)).toBe(12);
     expect(parseContractMonths("24")).toBe(24);
     expect(parseContractMonths("6")).toBe(6);
-    for (const bad of ["", "3", "13", "bulanan", "tahunan", "12.0", " 12", null, undefined, 7, NaN, {}]) {
+    for (const bad of ["", "06", "012", "3", "13", "bulanan", "tahunan", "12.0", " 12", null, undefined, 7, NaN, {}]) {
       expect(parseContractMonths(bad)).toBeNull();
     }
   });

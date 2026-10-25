@@ -202,7 +202,7 @@ export const TOOLS: ToolDef[] = [
           };
         }
         case "payment_terms":
-          return { topic, info: s.paymentTerms, due_day: s.dueDayOfMonth, minimum_months: s.minMonths };
+          return { topic, info: s.paymentTerms, due_day: s.dueDayOfMonth };
         case "facilities":
           return { topic, info: s.facilities };
         case "services": {
