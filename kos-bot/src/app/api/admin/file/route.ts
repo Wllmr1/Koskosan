@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * The only way to read a KTP photo or a signed contract. Owner-only, and every
+ * The only way to read a KTP photo or a signed contract. Dashboard logins only, and every
  * read is written to the audit log — so you can always answer "who opened this".
  */
 export async function GET(req: NextRequest) {

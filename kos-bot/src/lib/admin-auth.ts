@@ -134,9 +134,12 @@ export async function findAdminSetup(raw: string) {
   return row;
 }
 
+/** Shown for a used, expired or unknown setup link (and for a switched-off admin). */
+export const SETUP_INVALID = "Link sudah dipakai atau kedaluwarsa. Minta link baru ke pemilik.";
+
 /** Sets the password, burns every open link, and ends any existing session of this admin. */
 export async function consumeAdminSetup(raw: string, password: string, confirm: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const invalid = { ok: false as const, error: "Link sudah dipakai atau kedaluwarsa. Minta link baru ke pemilik." };
+  const invalid = { ok: false as const, error: SETUP_INVALID };
   const row = await findAdminSetup(raw);
   if (!row) return invalid;
   const problem = passwordProblem(password, confirm);

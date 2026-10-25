@@ -22,7 +22,7 @@ const ROOM_NOTICE: Record<string, { text: string; tone: "ok" | "bad" }> = {
 };
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ room?: string }> }) {
-  await requireAdmin();
+  const who = await requireAdmin();
   const { room: roomNotice } = await searchParams;
 
   const [notifications, leases, unpaid, tickets, guests, applications, botStats, rooms] = await Promise.all([
@@ -77,11 +77,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <main className="wrap" style={{ padding: "26px 20px 60px" }}>
       <header style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 24 }}>Dashboard pemilik</h1>
-        <a className="btn" href="/" style={{ marginLeft: "auto" }}>Lihat situs</a>
+        <span className="muted small" style={{ marginLeft: "auto" }}>Masuk sebagai {who.name}</span>
+        <a className="btn" href="/">Lihat situs</a>
         <a className="btn" href="/admin/data">Data kos</a>
         <a className="btn" href="/admin/percakapan">Percakapan</a>
         <a className="btn" href="/admin/penghuni/baru">Tambah penghuni</a>
         <a className="btn" href="/admin/meteran">Catat meteran</a>
+        {who.isOwner && <a className="btn" href="/admin/admin">Kelola admin</a>}
         <a className="btn" href="/api/admin/logout">Keluar</a>
       </header>
 
