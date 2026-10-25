@@ -22,7 +22,7 @@ will not let an assistant reset them for you. Choose one:
 ```sh
 npx prisma db push          # create the tables (empty database or after the reset)
 npm run db:seed             # settings, the seven room types, rooms, demo renters
-npm run db:photos -- <folder-with-one-subfolder-per-type>
+npm run db:photos -- <folder>   # one flat folder; files named by type, e.g. vip-a-1.jpg, standard-new-2.jpg
 npm test                    # optional: proves the suite on TEST_DATABASE_URL
 ```
 
