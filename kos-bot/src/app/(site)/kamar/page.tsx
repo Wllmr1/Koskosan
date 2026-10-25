@@ -10,7 +10,7 @@ export default async function RoomsPage() {
     prisma.room.findMany({
       where: { hidden: false },
       orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
-      include: { photos: { where: { isCover: true }, take: 1 } },
+      include: { roomType: { include: { photos: { where: { isCover: true }, take: 1 } } } },
     }),
   ]);
   if (!settings) return <NoData />;

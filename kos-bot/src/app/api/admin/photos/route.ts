@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
   const done = (query: string) => backTo(req, back, query);
 
   if (op === "upload") {
-    const roomId = String(form.get("roomId") ?? "") || null;
-    if (roomId && !(await prisma.room.findUnique({ where: { id: roomId }, select: { id: true } }))) {
-      return done(`error=${encodeURIComponent("Kamar tidak ditemukan")}`);
+    const roomTypeId = String(form.get("roomTypeId") ?? "") || null;
+    if (roomTypeId && !(await prisma.roomType.findUnique({ where: { id: roomTypeId }, select: { id: true } }))) {
+      return done(`error=${encodeURIComponent("Tipe kamar tidak ditemukan")}`);
     }
     const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 12);
     if (!files.length) return done(`error=${encodeURIComponent("Pilih foto dulu")}`);
@@ -27,12 +27,12 @@ export async function POST(req: NextRequest) {
     const failed: string[] = [];
     for (const file of files) {
       try {
-        await addPhoto({ roomId, file, caption });
+        await addPhoto({ roomTypeId, file, caption });
       } catch (e) {
         failed.push(`${file.name.slice(0, 40)}: ${(e as Error).message}`);
       }
     }
-    await prisma.auditLog.create({ data: { actor: "owner", action: "photo:upload", meta: { roomId, count: files.length - failed.length } as never } });
+    await prisma.auditLog.create({ data: { actor: "owner", action: "photo:upload", meta: { roomTypeId, count: files.length - failed.length } as never } });
     return failed.length ? done(`error=${encodeURIComponent(failed.join("; "))}`) : done("saved=1");
   }
 

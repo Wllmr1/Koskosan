@@ -59,10 +59,22 @@ async function main() {
     { code: "C-302", type: "Studio", floor: 3, sizeLabel: "4 × 4 m", monthlyPrice: 2_500_000, bathroom: "Kamar mandi dalam + water heater", extras: "AC, kasur 160, pantry kecil, kulkas, meja belajar", status: RoomStatus.AVAILABLE },
   ];
 
+  // One room type per distinct sample type; Task 2 replaces this with the full demo data.
+  const typeIds = new Map<string, string>();
   for (const [index, room] of rooms.entries()) {
+    if (!typeIds.has(room.type)) {
+      const { sizeLabel, monthlyPrice, bathroom, extras } = room;
+      const type = await prisma.roomType.upsert({
+        where: { slug: room.type.toLowerCase() },
+        create: { slug: room.type.toLowerCase(), name: room.type, sizeLabel, monthlyPrice, bathroom, extras, hasEnsuite: bathroom.includes("dalam"), sortOrder: typeIds.size },
+        update: {},
+      });
+      typeIds.set(room.type, type.id);
+    }
+    const { code, floor, status } = room;
     await prisma.room.upsert({
-      where: { code: room.code },
-      create: { ...room, sortOrder: index },
+      where: { code },
+      create: { code, floor, status, roomTypeId: typeIds.get(room.type)!, sortOrder: index },
       update: {},
     });
   }

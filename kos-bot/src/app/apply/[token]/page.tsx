@@ -28,7 +28,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
     );
   }
 
-  const amount = onboardingAmount(app.room.monthlyPrice, app.plan, settings.yearlyMonths, settings.depositMonths);
+  const amount = onboardingAmount(app.room.roomType.monthlyPrice, app.plan, settings.yearlyMonths, settings.depositMonths);
   const rentMonths = app.plan === "YEARLY" ? settings.yearlyMonths : 1;
 
   // Built by the same function as the signed PDF, so the wording on screen is
@@ -45,17 +45,17 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
         reference={app.reference}
         room={{
           code: app.room.code,
-          type: app.room.type,
-          size: app.room.sizeLabel,
-          price: rp(app.room.monthlyPrice),
+          type: app.room.roomType.name,
+          size: app.room.roomType.sizeLabel,
+          price: rp(app.room.roomType.monthlyPrice),
         }}
         plan={app.plan === "YEARLY" ? "tahunan" : "bulanan"}
         startStep={clauses.length ? 2 : 1}
         contractHash={contract ? contractHash(contract) : ""}
         summary={{
           rentLabel: app.plan === "YEARLY" ? `Sewa ${rentMonths} bulan (tahunan)` : "Sewa bulan pertama",
-          rentAmount: rp(app.room.monthlyPrice * rentMonths),
-          depositAmount: rp(app.room.monthlyPrice * settings.depositMonths),
+          rentAmount: rp(app.room.roomType.monthlyPrice * rentMonths),
+          depositAmount: rp(app.room.roomType.monthlyPrice * settings.depositMonths),
           total: rp(amount),
         }}
         clauses={clauses}

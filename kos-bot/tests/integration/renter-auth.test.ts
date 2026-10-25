@@ -11,7 +11,7 @@ let endedId = "";
 
 async function tenantWithLease(status: LeaseStatus) {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: "B-201" } });
+  const room = await prisma.room.findFirstOrThrow({ where: { code: "B-201" }, include: { roomType: true } });
   const tenant = await prisma.tenant.create({
     data: {
       accountCode: `WA-A${id}`,
@@ -27,8 +27,8 @@ async function tenantWithLease(status: LeaseStatus) {
       tenantId: tenant.id,
       roomId: room.id,
       plan: LeasePlan.MONTHLY,
-      monthlyRent: room.monthlyPrice,
-      deposit: room.monthlyPrice,
+      monthlyRent: room.roomType.monthlyPrice,
+      deposit: room.roomType.monthlyPrice,
       startDate: new Date("2026-01-01"),
       endDate: new Date("2026-12-31"),
       status,

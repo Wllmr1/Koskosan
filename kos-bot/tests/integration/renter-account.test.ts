@@ -8,7 +8,7 @@ import { firstOfMonth } from "@/lib/money";
 import { loadRenterAccount } from "@/lib/renter-account";
 import { renterCookieValue } from "@/lib/renter-auth";
 import { GET as downloadContract } from "@/app/api/akun/kontrak/route";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 
 const DAY = 86_400_000;
 let tenantId = "";
@@ -17,9 +17,7 @@ let contractKey = "";
 
 async function makeTenant(status: LeaseStatus, withContract: boolean) {
   const id = uniq();
-  const room = await prisma.room.create({
-    data: { code: `R${id}`.slice(0, 12), type: "Deluxe", floor: 2, sizeLabel: "3 × 4 m", monthlyPrice: 1_850_000, bathroom: "Dalam", extras: "AC" },
-  });
+  const room = await makeRoom({ type: { monthlyPrice: 1_850_000, bathroom: "Dalam" } });
   const tenant = await prisma.tenant.create({
     data: {
       accountCode: `WA-K${id}`,
@@ -95,7 +93,7 @@ afterAll(() => prisma.$disconnect());
 describe("loadRenterAccount", () => {
   it("shows the renter's room, contract and days left", async () => {
     const acct = await loadRenterAccount(tenantId);
-    expect(acct.lease?.roomCode).toMatch(/^R/);
+    expect(acct.lease?.roomCode).toMatch(/^T/);
     expect(acct.lease?.status).toBe("ACTIVE");
     expect(acct.lease?.daysLeft).toBeGreaterThanOrEqual(49);
     expect(acct.lease?.hasContract).toBe(true);

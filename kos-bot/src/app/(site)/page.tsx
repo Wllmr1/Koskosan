@@ -15,16 +15,16 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const [settings, rooms, services, nearby, faqCount, gallery] = await Promise.all([
     prisma.propertySetting.findUnique({ where: { id: "default" } }),
-    prisma.room.findMany({ where: { hidden: false }, select: { status: true, monthlyPrice: true } }),
+    prisma.room.findMany({ where: { hidden: false }, select: { status: true, roomType: { select: { monthlyPrice: true } } } }),
     prisma.service.count(),
     prisma.nearbyPlace.findMany({ orderBy: { sortOrder: "asc" }, take: 2 }),
     prisma.faqEntry.count(),
-    prisma.photo.findMany({ where: { roomId: null }, orderBy: { sortOrder: "asc" }, take: 8 }),
+    prisma.photo.findMany({ where: { roomTypeId: null }, orderBy: { sortOrder: "asc" }, take: 8 }),
   ]);
   if (!settings) return <NoData />;
 
   const available = rooms.filter((r) => r.status === RoomStatus.AVAILABLE).length;
-  const cheapest = rooms.length ? Math.min(...rooms.map((r) => r.monthlyPrice)) : 0;
+  const cheapest = rooms.length ? Math.min(...rooms.map((r) => r.roomType.monthlyPrice)) : 0;
   const [heroPhoto, ...restOfGallery] = gallery;
 
   const pages = [

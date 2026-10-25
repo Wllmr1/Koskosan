@@ -11,7 +11,7 @@ let ctx: ReturnType<typeof makeCtx>;
 
 beforeAll(async () => {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: "A-103" } });
+  const room = await prisma.room.findFirstOrThrow({ where: { code: "A-103" }, include: { roomType: true } });
   const tenant = await prisma.tenant.create({
     data: {
       accountCode: `WA-G${id}`,
@@ -27,8 +27,8 @@ beforeAll(async () => {
       tenantId: tenant.id,
       roomId: room.id,
       plan: LeasePlan.MONTHLY,
-      monthlyRent: room.monthlyPrice,
-      deposit: room.monthlyPrice,
+      monthlyRent: room.roomType.monthlyPrice,
+      deposit: room.roomType.monthlyPrice,
       startDate: new Date(),
       endDate: new Date(Date.now() + 90 * 86_400_000),
       status: LeaseStatus.ACTIVE,

@@ -17,7 +17,7 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
   const [tenant, settings] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      include: { leases: { include: { room: true }, orderBy: { startDate: "desc" } } },
+      include: { leases: { include: { room: { include: { roomType: true } } }, orderBy: { startDate: "desc" } } },
     }),
     prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } }),
   ]);
@@ -85,7 +85,7 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
     lease: shown && {
       status: shown.status,
       roomCode: shown.room.code,
-      roomType: shown.room.type,
+      roomType: shown.room.roomType.name,
       plan: shown.plan,
       monthlyRent: shown.monthlyRent,
       deposit: shown.deposit,

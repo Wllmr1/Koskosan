@@ -12,7 +12,7 @@ afterAll(() => prisma.$disconnect());
 
 async function signedApplication(roomCode: string) {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: roomCode } });
+  const room = await prisma.room.findFirstOrThrow({ where: { code: roomCode }, include: { roomType: true } });
   const contact = await prisma.contact.create({
     data: { channel: "WEB", webSessionId: `anon:pay-${id}`, type: "PROSPECT", expiresAt: new Date(Date.now() + 86_400_000) },
   });
@@ -38,7 +38,7 @@ async function signedApplication(roomCode: string) {
   const invoice = await createLocalInvoice({
     kind: InvoiceKind.ONBOARDING,
     description: "Pembayaran pertama (test)",
-    amount: room.monthlyPrice * 2,
+    amount: room.roomType.monthlyPrice * 2,
     dueDate: new Date(),
     applicationId: app.id,
   });

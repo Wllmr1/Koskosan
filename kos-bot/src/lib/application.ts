@@ -51,7 +51,7 @@ export async function findApplicationByToken(rawToken: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(rawToken)) return null;
   const app = await prisma.application.findUnique({
     where: { tokenHash: sha256(rawToken) },
-    include: { room: true, contact: true },
+    include: { room: { include: { roomType: true } }, contact: true },
   });
   if (!app) return null;
   if (app.expiresAt < new Date()) return null;
@@ -95,7 +95,7 @@ export function termLabel(plan: LeasePlan, minMonths: number) {
 export async function buildContractData(applicationId: string, idNumber: string): Promise<ContractData> {
   const app = await prisma.application.findUniqueOrThrow({
     where: { id: applicationId },
-    include: { room: true },
+    include: { room: { include: { roomType: true } } },
   });
   const s = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
 
@@ -110,11 +110,11 @@ export async function buildContractData(applicationId: string, idNumber: string)
     tenantPhone: app.phoneE164 ?? "",
     tenantIdNumber: idNumber,
     roomCode: app.room.code,
-    roomType: app.room.type,
-    roomSize: app.room.sizeLabel,
+    roomType: app.room.roomType.name,
+    roomSize: app.room.roomType.sizeLabel,
     plan: app.plan,
-    monthlyRent: app.room.monthlyPrice,
-    deposit: app.room.monthlyPrice * s.depositMonths,
+    monthlyRent: app.room.roomType.monthlyPrice,
+    deposit: app.room.roomType.monthlyPrice * s.depositMonths,
     startDate: start,
     endDate: addMonths(start, months),
     termLabel: termLabel(app.plan, s.minMonths),

@@ -19,13 +19,13 @@ async function load(code: string) {
   if (!/^[A-Za-z0-9-]{2,12}$/.test(code)) return null;
   return prisma.room.findFirst({
     where: { code: code.toUpperCase(), hidden: false },
-    include: { photos: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }] } },
+    include: { roomType: { include: { photos: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }] } } } },
   });
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
   const room = await load((await params).code);
-  return { title: room ? `Kamar ${room.code} · ${room.type}` : "Kamar tidak ditemukan" };
+  return { title: room ? `Kamar ${room.code} · ${room.roomType.name}` : "Kamar tidak ditemukan" };
 }
 
 const RENT_NOTICE: Record<string, string> = {
@@ -51,13 +51,13 @@ export default async function RoomPage({
       value: "bulanan",
       label: "Bulanan",
       note: `Kontrak minimal ${settings.minMonths} bulan, bayar tiap tanggal ${settings.dueDayOfMonth}.`,
-      total: onboardingAmount(room.monthlyPrice, "MONTHLY", settings.yearlyMonths, settings.depositMonths),
+      total: onboardingAmount(room.roomType.monthlyPrice, "MONTHLY", settings.yearlyMonths, settings.depositMonths),
     },
     {
       value: "tahunan",
       label: "Tahunan",
       note: `Bayar ${settings.yearlyMonths} bulan untuk 12 bulan sewa.`,
-      total: onboardingAmount(room.monthlyPrice, "YEARLY", settings.yearlyMonths, settings.depositMonths),
+      total: onboardingAmount(room.roomType.monthlyPrice, "YEARLY", settings.yearlyMonths, settings.depositMonths),
     },
   ];
 
@@ -68,24 +68,24 @@ export default async function RoomPage({
         Kamar {room.code}
       </h1>
       <p className="muted" style={{ marginTop: 0 }}>
-        {room.type}, {room.sizeLabel}, lantai {room.floor}, {room.bathroom.toLowerCase()}
+        {room.roomType.name}, {room.roomType.sizeLabel}, lantai {room.floor}, {room.roomType.bathroom.toLowerCase()}
       </p>
 
       <section style={{ margin: "18px 0" }}>
-        <PhotoGrid photos={room.photos} slots={3} alt={`Kamar ${room.code}`} min={260} />
+        <PhotoGrid photos={room.roomType.photos} slots={3} alt={`Kamar ${room.code}`} min={260} />
       </section>
 
       <div className="room-layout">
       <section className="panel" style={{ display: "grid", gap: 10 }}>
         <p className="room-price room-price-lg">
-          {rp(room.monthlyPrice)} <span>per bulan</span>
+          {rp(room.roomType.monthlyPrice)} <span>per bulan</span>
         </p>
         <p className="small" style={{ margin: 0 }}>
           {STATUS[room.status]}
           {room.status !== RoomStatus.AVAILABLE && room.availableOn ? ` · kosong ${niceDate(room.availableOn)}` : ""}
         </p>
-        <p className="muted" style={{ margin: 0 }}>Isi kamar: {room.extras}</p>
-        {room.description && <p style={{ margin: 0, whiteSpace: "pre-line" }}>{room.description}</p>}
+        <p className="muted" style={{ margin: 0 }}>Isi kamar: {room.roomType.extras}</p>
+        {room.roomType.description && <p style={{ margin: 0, whiteSpace: "pre-line" }}>{room.roomType.description}</p>}
         <p className="muted small" style={{ margin: 0 }}>
           Termasuk kuota listrik {settings.electricQuota} kWh/bulan. {settings.utilitiesNote}. Deposit {settings.depositMonths}× sewa.
         </p>

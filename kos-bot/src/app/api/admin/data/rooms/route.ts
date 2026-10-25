@@ -3,7 +3,8 @@ import { Prisma, RoomStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { backTo, ownerPostGuard } from "@/lib/admin-guard";
 import { firstIssue, parseRoom } from "@/lib/admin-forms";
-import { deleteObject } from "@/lib/storage";
+
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tipe";
 
 export const runtime = "nodejs";
 
@@ -20,23 +21,31 @@ export async function POST(req: NextRequest) {
   if (op === "delete") {
     const room = await prisma.room.findUnique({
       where: { id },
-      include: { _count: { select: { leases: true, applications: true } }, photos: true },
+      include: { _count: { select: { leases: true, applications: true } } },
     });
     if (!room) return fail("Kamar tidak ditemukan");
     if (room._count.leases || room._count.applications) {
       return backTo(req, `/admin/data/kamar/${id}`, `error=${encodeURIComponent("Kamar ini punya riwayat kontrak — sembunyikan saja")}`);
     }
     await prisma.room.delete({ where: { id } });
-    for (const p of room.photos) await deleteObject(p.key).catch(() => undefined);
     await prisma.auditLog.create({ data: { actor: "owner", action: "data:room:delete", meta: { room: room.code } as never } });
     return back("saved=1");
   }
 
   const parsed = parseRoom(form);
   if (!parsed.success) return fail(firstIssue(parsed.error));
-  const { availableOn, ...rest } = parsed.data;
+  const { availableOn, type, sizeLabel, monthlyPrice, bathroom, extras, description, ...rest } = parsed.data;
+  // Until the type editor arrives (Task 3), the room form still carries the type fields:
+  // they create or update the room type with that name.
+  const typeFields = { sizeLabel, monthlyPrice, bathroom, extras, description };
+  const roomType = await prisma.roomType.upsert({
+    where: { slug: slugify(type) },
+    create: { slug: slugify(type), name: type, ...typeFields, hasEnsuite: /dalam/i.test(bathroom) },
+    update: typeFields,
+  });
   const data = {
     ...rest,
+    roomTypeId: roomType.id,
     availableOn: rest.status === RoomStatus.AVAILABLE || !availableOn ? null : new Date(`${availableOn}T00:00:00Z`),
   };
 

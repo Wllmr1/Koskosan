@@ -13,7 +13,7 @@ export default async function EditRoomPage({
 }) {
   const { id } = await params;
   const q = await searchParams;
-  const room = await prisma.room.findUnique({ where: { id }, include: { photos: { orderBy: { sortOrder: "asc" } } } });
+  const room = await prisma.room.findUnique({ where: { id }, include: { roomType: { include: { photos: { orderBy: { sortOrder: "asc" } } } } } });
   if (!room) notFound();
 
   return (
@@ -29,7 +29,7 @@ export default async function EditRoomPage({
           <a className="btn" href={`/kamar/${encodeURIComponent(room.code)}`} target="_blank" rel="noreferrer">Lihat di situs</a>
         </div>
       </form>
-      <PhotoManager photos={room.photos} roomId={room.id} back={`/admin/data/kamar/${room.id}`} />
+      <PhotoManager photos={room.roomType.photos} roomTypeId={room.roomTypeId} back={`/admin/data/kamar/${room.id}`} />
       <form method="post" action="/api/admin/data/rooms" className="card" style={{ padding: 22 }}>
         <input type="hidden" name="op" value="delete" />
         <input type="hidden" name="id" value={room.id} />

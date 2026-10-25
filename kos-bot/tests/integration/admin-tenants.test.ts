@@ -3,14 +3,12 @@ import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { addExistingTenant, parseExistingTenant } from "@/lib/admin-tenants";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 
 afterAll(() => prisma.$disconnect());
 
 async function freeRoom() {
-  return prisma.room.create({
-    data: { code: `E${uniq()}`.slice(0, 12), type: "Standard", floor: 1, sizeLabel: "3 × 3 m", monthlyPrice: 1_350_000, bathroom: "Luar", extras: "AC" },
-  });
+  return makeRoom({ type: { monthlyPrice: 1_350_000 } });
 }
 
 function form(values: Record<string, string>) {

@@ -1,4 +1,4 @@
-import type { Photo, Room } from "@prisma/client";
+import type { Photo, Room, RoomType } from "@prisma/client";
 import { RoomStatus } from "@prisma/client";
 import { niceDate, rp } from "@/lib/money";
 import { PhotoSlot } from "./PhotoSlot";
@@ -51,21 +51,21 @@ export function Fact({ value, label }: { value: string; label: string }) {
 }
 
 /** A room in a list: cover photo (or placeholder), key facts, availability. Links to the room page. */
-export function RoomCard({ room }: { room: Room & { photos: Photo[] } }) {
+export function RoomCard({ room }: { room: Room & { roomType: RoomType & { photos: Photo[] } } }) {
   return (
     <a href={`/kamar/${encodeURIComponent(room.code)}`} className="room-card">
-      <PhotoSlot photo={room.photos[0] ?? null} alt={`Kamar ${room.code}`} />
+      <PhotoSlot photo={room.roomType.photos[0] ?? null} alt={`Kamar ${room.code}`} />
       <div className="room-card-head">
         <span className="room-card-name">Kamar {room.code}</span>
-        <span className="room-card-type">{room.type}</span>
+        <span className="room-card-type">{room.roomType.name}</span>
       </div>
       <p className="room-price">
-        {rp(room.monthlyPrice)} <span>per bulan</span>
+        {rp(room.roomType.monthlyPrice)} <span>per bulan</span>
       </p>
       <div className="small muted">
-        {room.sizeLabel}, lantai {room.floor}, {room.bathroom.toLowerCase()}
+        {room.roomType.sizeLabel}, lantai {room.floor}, {room.roomType.bathroom.toLowerCase()}
       </div>
-      <div className="small muted" style={{ marginTop: 2 }}>{room.extras}</div>
+      <div className="small muted" style={{ marginTop: 2 }}>{room.roomType.extras}</div>
       <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span className={`pill ${room.status === "AVAILABLE" ? "pill-ok" : room.status === "BOOKED" ? "pill-warn" : "pill-mute"}`}>
           {STATUS_LABEL[room.status]}

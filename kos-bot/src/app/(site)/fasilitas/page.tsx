@@ -9,7 +9,7 @@ export default async function FacilitiesPage() {
   const [settings, services, gallery] = await Promise.all([
     prisma.propertySetting.findUnique({ where: { id: "default" } }),
     prisma.service.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.photo.findMany({ where: { roomId: null }, orderBy: { sortOrder: "asc" }, take: 9 }),
+    prisma.photo.findMany({ where: { roomTypeId: null }, orderBy: { sortOrder: "asc" }, take: 9 }),
   ]);
   if (!settings) return <NoData />;
 

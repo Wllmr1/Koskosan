@@ -26,15 +26,15 @@ export async function processPhoto(input: Buffer, declaredType: string) {
 
 export const photoUrl = (key: string) => `/${key}`;
 
-/** Room photo (roomId) or property gallery photo (null). The first one becomes the cover. */
-export async function addPhoto(opts: { roomId: string | null; file: File; caption: string }) {
+/** Room type photo (roomTypeId) or property gallery photo (null). The first one becomes the cover. */
+export async function addPhoto(opts: { roomTypeId: string | null; file: File; caption: string }) {
   const { data, width, height } = await processPhoto(Buffer.from(await opts.file.arrayBuffer()), opts.file.type);
   const key = `photos/${crypto.randomBytes(12).toString("base64url")}.webp`;
   await putObject(key, data, "image/webp");
-  const count = await prisma.photo.count({ where: { roomId: opts.roomId } });
+  const count = await prisma.photo.count({ where: { roomTypeId: opts.roomTypeId } });
   return prisma.photo.create({
     data: {
-      roomId: opts.roomId,
+      roomTypeId: opts.roomTypeId,
       caption: opts.caption.trim().slice(0, 140),
       key,
       width,
@@ -49,7 +49,7 @@ export async function removePhoto(id: string) {
   const photo = await prisma.photo.delete({ where: { id } });
   await deleteObject(photo.key).catch(() => undefined);
   if (photo.isCover) {
-    const next = await prisma.photo.findFirst({ where: { roomId: photo.roomId }, orderBy: { sortOrder: "asc" } });
+    const next = await prisma.photo.findFirst({ where: { roomTypeId: photo.roomTypeId }, orderBy: { sortOrder: "asc" } });
     if (next) await prisma.photo.update({ where: { id: next.id }, data: { isCover: true } });
   }
   return photo;
@@ -58,7 +58,7 @@ export async function removePhoto(id: string) {
 export async function setCover(id: string) {
   const photo = await prisma.photo.findUniqueOrThrow({ where: { id } });
   await prisma.$transaction([
-    prisma.photo.updateMany({ where: { roomId: photo.roomId }, data: { isCover: false } }),
+    prisma.photo.updateMany({ where: { roomTypeId: photo.roomTypeId }, data: { isCover: false } }),
     prisma.photo.update({ where: { id }, data: { isCover: true } }),
   ]);
   return photo;
@@ -66,7 +66,7 @@ export async function setCover(id: string) {
 
 export async function movePhoto(id: string, direction: -1 | 1) {
   const photo = await prisma.photo.findUniqueOrThrow({ where: { id } });
-  const siblings = await prisma.photo.findMany({ where: { roomId: photo.roomId }, orderBy: { sortOrder: "asc" } });
+  const siblings = await prisma.photo.findMany({ where: { roomTypeId: photo.roomTypeId }, orderBy: { sortOrder: "asc" } });
   const index = siblings.findIndex((p) => p.id === id);
   const swap = index + direction;
   if (swap < 0 || swap >= siblings.length) return photo;

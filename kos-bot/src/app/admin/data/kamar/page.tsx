@@ -7,7 +7,7 @@ export default async function RoomsPage({ searchParams }: { searchParams: Promis
   const q = await searchParams;
   const rooms = await prisma.room.findMany({
     orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
-    include: { _count: { select: { photos: true } } },
+    include: { roomType: { include: { _count: { select: { photos: true } } } } },
   });
   return (
     <>
@@ -19,10 +19,10 @@ export default async function RoomsPage({ searchParams }: { searchParams: Promis
           <tbody>
             {rooms.map((r) => (
               <tr key={r.id}>
-                <td><strong>{r.code}</strong><small>{r.type}{r.hidden ? " · disembunyikan" : ""}</small></td>
-                <td>{rp(r.monthlyPrice)}</td>
+                <td><strong>{r.code}</strong><small>{r.roomType.name}{r.hidden ? " · disembunyikan" : ""}</small></td>
+                <td>{rp(r.roomType.monthlyPrice)}</td>
                 <td>{r.status.toLowerCase()}</td>
-                <td>{r._count.photos}</td>
+                <td>{r.roomType._count.photos}</td>
                 <td><a href={`/admin/data/kamar/${r.id}`}>Ubah</a></td>
               </tr>
             ))}

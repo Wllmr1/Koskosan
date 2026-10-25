@@ -127,7 +127,7 @@ async function holdForReview(
 async function completeOnboarding(applicationId: string, invoiceId: string, amount: number, invoiceCode: string) {
   const app = await prisma.application.findUniqueOrThrow({
     where: { id: applicationId },
-    include: { room: true, contact: true },
+    include: { room: { include: { roomType: true } }, contact: true },
   });
   if (app.status === ApplicationStatus.COMPLETED) return;
   if (!app.fullName || !app.phoneE164 || !app.idNumberEnc || !app.dateOfBirth) return;
@@ -136,8 +136,8 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
   const start = app.moveInDate ?? new Date();
   // The lease follows the contract as signed, even if the owner changed prices since.
   const months = app.signedTermMonths ?? termMonths(app.plan, settings.minMonths);
-  const monthlyRent = app.signedMonthlyRent ?? app.room.monthlyPrice;
-  const deposit = app.signedDeposit ?? app.room.monthlyPrice * settings.depositMonths;
+  const monthlyRent = app.signedMonthlyRent ?? app.room.roomType.monthlyPrice;
+  const deposit = app.signedDeposit ?? app.room.roomType.monthlyPrice * settings.depositMonths;
 
   // The phone number on the form is not verified. If it already belongs to a
   // renter, only the same person (same KTP number and date of birth) may
@@ -209,7 +209,7 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
     body: [
       `Penyewa baru: ${app.fullName}`,
       `Akun: ${result.tenant.accountCode}`,
-      `Kamar: ${app.room.code} (${app.room.type})`,
+      `Kamar: ${app.room.code} (${app.room.roomType.name})`,
       `Skema: ${app.plan === "YEARLY" ? "tahunan" : "bulanan"}`,
       `Mulai: ${niceDate(start)}`,
       `Dibayar: ${rp(amount)} (${invoiceCode})`,

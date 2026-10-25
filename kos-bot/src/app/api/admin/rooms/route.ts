@@ -41,14 +41,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(new URL("/admin?room=occupied#kamar", req.url), { status: 303 });
   }
 
-  await prisma.room.update({
-    where: { id: roomId },
-    data: {
-      status,
-      monthlyPrice,
-      availableOn: status === RoomStatus.AVAILABLE || !availableOn ? null : new Date(`${availableOn}T00:00:00Z`),
-    },
-  });
+  await prisma.$transaction([
+    prisma.room.update({
+      where: { id: roomId },
+      data: {
+        status,
+        availableOn: status === RoomStatus.AVAILABLE || !availableOn ? null : new Date(`${availableOn}T00:00:00Z`),
+      },
+    }),
+    // The price belongs to the room type, so every room of that type changes with it.
+    prisma.roomType.update({ where: { id: room.roomTypeId }, data: { monthlyPrice } }),
+  ]);
   await prisma.auditLog.create({
     data: {
       actor: "owner",

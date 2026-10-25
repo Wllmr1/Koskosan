@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { billOverage, meterSheet, saveMeterReadings } from "@/lib/meter";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 
 const PERIOD = new Date(Date.UTC(2026, 8, 1)); // September 2026
 let roomOver = "";
@@ -13,9 +13,7 @@ let tenantOver = "";
 beforeAll(async () => {
   for (const [used, keep] of [[118, "over"], [60, "under"]] as const) {
     const id = uniq();
-    const room = await prisma.room.create({
-      data: { code: `M${id}`.slice(0, 12), type: "Standard", floor: 1, sizeLabel: "3 × 3 m", monthlyPrice: 1_350_000, bathroom: "Luar", extras: "AC", status: "OCCUPIED" },
-    });
+    const room = await makeRoom({ status: "OCCUPIED", type: { monthlyPrice: 1_350_000 } });
     const tenant = await prisma.tenant.create({
       data: { accountCode: `WA-M${id}`, fullName: "Penghuni Meter", phoneE164: `+62821${id}`, dateOfBirth: new Date("2003-01-01"), idNumberEnc: encrypt(`3208000${id}`), idLast4: id.slice(-4) },
     });

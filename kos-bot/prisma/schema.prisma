@@ -145,27 +145,42 @@ model Tenant {
   tickets        Ticket[]
 }
 
-model Room {
-  id           String          @id @default(cuid())
-  code         String          @unique // "B-204"
-  type         String // Standard / Deluxe / Studio
-  floor        Int
+/// What a renter chooses: price, size, bathroom, furnishings and photos live here.
+model RoomType {
+  id           String   @id @default(cuid())
+  slug         String   @unique // "vip-a"
+  name         String   @unique // "VIP A"
+  description  String   @default("")
   sizeLabel    String
   monthlyPrice Int
   bathroom     String
   extras       String
+  isNew        Boolean  @default(false)
+  isVip        Boolean  @default(false)
+  hasEnsuite   Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  rooms        Room[]
+  photos       Photo[]
+  updatedAt    DateTime @updatedAt
+}
+
+model Room {
+  id           String          @id @default(cuid())
+  code         String          @unique // "B-204"
+  roomTypeId   String
+  roomType     RoomType        @relation(fields: [roomTypeId], references: [id])
+  floor        Int
   status       RoomStatus      @default(AVAILABLE)
   availableOn  DateTime?       @db.Date
   sortOrder    Int             @default(0)
   leases       Lease[]
   utility      UtilityPeriod[]
   applications Application[]
-  description  String          @default("")
   hidden       Boolean         @default(false) // hidden rooms vanish from the site and the assistant
-  photos       Photo[]
   updatedAt    DateTime        @updatedAt
 
-  @@index([status, monthlyPrice])
+  @@index([roomTypeId, status])
+  @@index([status])
 }
 
 model Lease {
@@ -442,20 +457,20 @@ model FaqEntry {
   sortOrder Int    @default(0)
 }
 
-/// Room photo (roomId set) or property gallery photo (roomId null). Public.
+/// Room type photo (roomTypeId set) or property gallery photo (roomTypeId null). Public.
 model Photo {
-  id        String   @id @default(cuid())
-  roomId    String?
-  room      Room?    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  caption   String   @default("")
-  key       String   @unique // "photos/<random>.webp" in storage
-  width     Int
-  height    Int
-  sortOrder Int      @default(0)
-  isCover   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  roomTypeId String?
+  roomType   RoomType? @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  caption    String    @default("")
+  key        String    @unique // "photos/<random>.webp" in storage
+  width      Int
+  height     Int
+  sortOrder  Int       @default(0)
+  isCover    Boolean   @default(false)
+  createdAt  DateTime  @default(now())
 
-  @@index([roomId, sortOrder])
+  @@index([roomTypeId, sortOrder])
 }
 
 /// Single-use link the owner sends so a renter can set or reset their password.

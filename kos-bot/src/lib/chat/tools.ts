@@ -57,7 +57,7 @@ function requireVerified(ctx: ChatCtx): asserts ctx is ChatCtx & { tenantId: str
 async function activeLease(tenantId: string) {
   return prisma.lease.findFirst({
     where: { tenantId, status: "ACTIVE" },
-    include: { room: true },
+    include: { room: { include: { roomType: true } } },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -111,23 +111,24 @@ export const TOOLS: ToolDef[] = [
       const rooms = await prisma.room.findMany({
         where: {
           hidden: false,
-          ...(input.type ? { type: { equals: str(input.type, 40), mode: "insensitive" } } : {}),
-          ...(maxPrice && Number.isFinite(maxPrice) ? { monthlyPrice: { lte: maxPrice } } : {}),
+          ...(input.type ? { roomType: { name: { equals: str(input.type, 40), mode: "insensitive" as const } } } : {}),
+          ...(maxPrice && Number.isFinite(maxPrice) ? { roomType: { monthlyPrice: { lte: maxPrice } } } : {}),
           ...(onlyAvailable ? { status: RoomStatus.AVAILABLE } : {}),
         },
-        orderBy: [{ monthlyPrice: "asc" }, { sortOrder: "asc" }],
+        orderBy: [{ roomType: { monthlyPrice: "asc" } }, { sortOrder: "asc" }],
+        include: { roomType: true },
         take: 8,
       });
 
       const totalAvailable = await prisma.room.count({ where: { status: RoomStatus.AVAILABLE, hidden: false } });
       const results = rooms.map((r) => ({
         room: r.code,
-        type: r.type,
-        size: r.sizeLabel,
+        type: r.roomType.name,
+        size: r.roomType.sizeLabel,
         floor: r.floor,
-        price_per_month: rp(r.monthlyPrice),
-        bathroom: r.bathroom,
-        extras: r.extras,
+        price_per_month: rp(r.roomType.monthlyPrice),
+        bathroom: r.roomType.bathroom,
+        extras: r.roomType.extras,
         status: r.status,
         move_in: r.availableOn ? niceDate(r.availableOn) : "bisa sekarang",
       }));
@@ -135,13 +136,14 @@ export const TOOLS: ToolDef[] = [
       if (!results.length) {
         const fallback = await prisma.room.findMany({
           where: { status: RoomStatus.AVAILABLE, hidden: false },
-          orderBy: { monthlyPrice: "asc" },
+          orderBy: { roomType: { monthlyPrice: "asc" } },
+          include: { roomType: true },
           take: 3,
         });
         return {
           results: [],
           note: "Nothing matched. Offer these instead and be honest that they are above the budget.",
-          cheapest_available: fallback.map((r) => ({ room: r.code, type: r.type, price_per_month: rp(r.monthlyPrice) })),
+          cheapest_available: fallback.map((r) => ({ room: r.code, type: r.roomType.name, price_per_month: rp(r.roomType.monthlyPrice) })),
         };
       }
       for (const r of rooms.slice(0, 3)) addAction(ctx, `Foto ${r.code}`, `/kamar/${encodeURIComponent(r.code)}`);
@@ -180,15 +182,14 @@ export const TOOLS: ToolDef[] = [
 
       switch (topic) {
         case "fees": {
-          const rooms = await prisma.room.findMany({
-            where: { hidden: false },
-            distinct: ["type"],
+          const rooms = await prisma.roomType.findMany({
+            where: { rooms: { some: { hidden: false } } },
             orderBy: { monthlyPrice: "asc" },
-            select: { type: true, monthlyPrice: true },
+            select: { name: true, monthlyPrice: true },
           });
           return {
             topic,
-            room_prices: rooms.map((r) => `${r.type}: ${rp(r.monthlyPrice)} per bulan`),
+            room_prices: rooms.map((r) => `${r.name}: ${rp(r.monthlyPrice)} per bulan`),
             deposit: `${s.depositMonths}× sewa bulanan, dikembalikan maksimal ${s.depositReturnDays} hari setelah keluar`,
             yearly_deal: `Bayar tahunan: ${s.yearlyMonths} bulan untuk 12 bulan sewa`,
             electricity: `Kuota ${s.electricQuota} kWh/bulan termasuk. Kelebihan ${rp(s.electricRate)}/kWh.`,
@@ -355,7 +356,7 @@ export const TOOLS: ToolDef[] = [
         account_id: ctx.accountCode,
         name: ctx.name,
         room: lease.room.code,
-        room_type: lease.room.type,
+        room_type: lease.room.roomType.name,
         plan: lease.plan === LeasePlan.YEARLY ? "tahunan" : "bulanan",
         monthly_rent: rp(lease.monthlyRent),
         contract_period: `${niceDate(lease.startDate)} sampai ${niceDate(lease.endDate)}`,

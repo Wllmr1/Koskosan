@@ -2,7 +2,7 @@ import type { Photo } from "@prisma/client";
 import { photoUrl } from "@/lib/photos";
 
 /** Upload, caption, reorder, choose cover, delete. Used for a room and for the property gallery. */
-export default function PhotoManager({ photos, roomId, back }: { photos: Photo[]; roomId: string | null; back: string }) {
+export default function PhotoManager({ photos, roomTypeId, back }: { photos: Photo[]; roomTypeId: string | null; back: string }) {
   return (
     <section className="card" style={{ padding: 22, marginBottom: 18 }}>
       <h2 style={{ fontSize: 18, marginBottom: 6 }}>Foto</h2>
@@ -13,7 +13,7 @@ export default function PhotoManager({ photos, roomId, back }: { photos: Photo[]
       <form method="post" action="/api/admin/photos" encType="multipart/form-data" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18 }}>
         <input type="hidden" name="op" value="upload" />
         <input type="hidden" name="back" value={back} />
-        {roomId && <input type="hidden" name="roomId" value={roomId} />}
+        {roomTypeId && <input type="hidden" name="roomTypeId" value={roomTypeId} />}
         <input type="file" name="files" accept="image/jpeg,image/png,image/webp" multiple required style={{ flex: "1 1 220px" }} />
         <input name="caption" placeholder="Keterangan (opsional)" maxLength={140} style={{ flex: "1 1 200px" }} />
         <button className="btn btn-pri" type="submit">Unggah</button>

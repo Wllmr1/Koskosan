@@ -20,7 +20,7 @@ async function application(opts: {
   signed?: { rent: number; deposit: number; months: number };
 }) {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: opts.roomCode } });
+  const room = await prisma.room.findFirstOrThrow({ where: { code: opts.roomCode }, include: { roomType: true } });
   const contact = await prisma.contact.create({
     data: { channel: "WEB", webSessionId: `anon:safety-${id}`, type: "PROSPECT", expiresAt: new Date(Date.now() + 86_400_000) },
   });
@@ -93,7 +93,7 @@ describe("the lease follows the signed contract", () => {
       idNumber: `3204000${id}`,
       signed: { rent: 1_850_000, deposit: 1_850_000, months: 3 },
     });
-    await prisma.room.update({ where: { id: room.id }, data: { monthlyPrice: 2_400_000 } });
+    await prisma.roomType.update({ where: { id: room.roomTypeId }, data: { monthlyPrice: 2_400_000 } });
     try {
       expect(await pay(invoice.code, invoice.amount)).toBe("paid");
       const tenant = await prisma.tenant.findUniqueOrThrow({ where: { phoneE164: `+62816${id}` }, include: { leases: true } });
@@ -102,7 +102,7 @@ describe("the lease follows the signed contract", () => {
       expect(lease.deposit).toBe(1_850_000);
       expect(lease.endDate.toISOString().slice(0, 10)).toBe("2027-02-01");
     } finally {
-      await prisma.room.update({ where: { id: room.id }, data: { monthlyPrice: room.monthlyPrice } });
+      await prisma.roomType.update({ where: { id: room.roomTypeId }, data: { monthlyPrice: room.roomType.monthlyPrice } });
     }
   });
 });

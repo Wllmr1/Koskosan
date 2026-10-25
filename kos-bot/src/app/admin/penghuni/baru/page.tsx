@@ -15,6 +15,7 @@ export default async function AddTenantPage({ searchParams }: { searchParams: Pr
   const rooms = await prisma.room.findMany({
     where: { leases: { none: { status: LeaseStatus.ACTIVE } } },
     orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+    include: { roomType: true },
   });
 
   return (
@@ -47,7 +48,7 @@ export default async function AddTenantPage({ searchParams }: { searchParams: Pr
               <label htmlFor="roomId">Kamar</label>
               <select id="roomId" name="roomId" required>
                 {rooms.map((r) => (
-                  <option key={r.id} value={r.id}>{r.code} · {r.type} · {rp(r.monthlyPrice)}</option>
+                  <option key={r.id} value={r.id}>{r.code} · {r.roomType.name} · {rp(r.roomType.monthlyPrice)}</option>
                 ))}
               </select>
               <small>Hanya kamar tanpa penghuni aktif.</small>

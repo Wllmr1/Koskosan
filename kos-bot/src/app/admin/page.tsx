@@ -29,7 +29,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     prisma.ownerNotification.findMany({ orderBy: { sentAt: "desc" }, take: 15 }),
     prisma.lease.findMany({
       where: { status: "ACTIVE" },
-      include: { tenant: true, room: true },
+      include: { tenant: true, room: { include: { roomType: true } } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.invoice.findMany({
@@ -61,7 +61,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       select: { meta: true },
       take: 2000,
     }),
-    prisma.room.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }] }),
+    prisma.room.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }], include: { roomType: true } }),
   ]);
   const notice = roomNotice ? ROOM_NOTICE[roomNotice] : undefined;
 
@@ -151,7 +151,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 <tr key={room.id}>
                   <td>
                     <strong>{room.code}</strong>
-                    <small>{room.type}</small>
+                    <small>{room.roomType.name}</small>
                     <form id={formId} method="post" action="/api/admin/rooms">
                       <input type="hidden" name="roomId" value={room.id} />
                     </form>
@@ -170,7 +170,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       type="number"
                       min={100000}
                       step={10000}
-                      defaultValue={room.monthlyPrice}
+                      defaultValue={room.roomType.monthlyPrice}
                       aria-label={`Harga ${room.code}`}
                       style={{ minWidth: 130 }}
                     />
@@ -235,7 +235,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     <small>{lease.tenant.accountCode}</small>
                     <small>KTP ••••{lease.tenant.idLast4}</small>
                   </td>
-                  <td>{lease.room.code}<small>{lease.room.type}</small></td>
+                  <td>{lease.room.code}<small>{lease.room.roomType.name}</small></td>
                   <td>{lease.plan === "YEARLY" ? "Tahunan" : "Bulanan"}<small>{rp(lease.monthlyRent)}/bln</small></td>
                   <td>{niceDate(lease.startDate)}<small>s/d {niceDate(lease.endDate)}</small></td>
                   <td>

@@ -6,24 +6,12 @@ import { sha256, signSession } from "@/lib/crypto";
 import { ApplicationError, createApplication } from "@/lib/application";
 import { resolveWebContext } from "@/lib/chat/context";
 import { POST as startOnline } from "@/app/api/apply/start/route";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 
 afterAll(() => prisma.$disconnect());
 
 async function room(status: RoomStatus = RoomStatus.AVAILABLE, hidden = false) {
-  return prisma.room.create({
-    data: {
-      code: `T${uniq()}`.slice(0, 12),
-      type: "Standard",
-      floor: 1,
-      sizeLabel: "3 × 3 m",
-      monthlyPrice: 1_000_000,
-      bathroom: "Kamar mandi luar",
-      extras: "AC",
-      status,
-      hidden,
-    },
-  });
+  return makeRoom({ status, hidden });
 }
 
 describe("createApplication (shared by the bot and the website)", () => {
