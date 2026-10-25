@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 type Action = { kind: "link"; label: string; path: string };
 type Line = { role: "user" | "assistant"; text: string; actions: Action[] };
 type Renter = { firstName: string } | null;
+type Mode = "button" | "window" | "big";
 
 export const OPEN_CHAT_EVENT = "kos:open-chat";
 const HIDDEN_ON = ["/admin", "/apply", "/dev", "/atur-password", "/masuk"];
@@ -20,7 +21,8 @@ export default function ChatWidget() {
   const pathname = usePathname() ?? "/";
   const hidden = HIDDEN_ON.some((p) => pathname.startsWith(p));
 
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("button");
+  const open = mode !== "button";
   const [loaded, setLoaded] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
   const [renter, setRenter] = useState<Renter>(null);
@@ -30,7 +32,7 @@ export default function ChatWidget() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const openWith = useCallback((text?: string) => {
-    setOpen(true);
+    setMode("window");
     if (text) setDraft(text.slice(0, 600));
   }, []);
 
@@ -58,6 +60,16 @@ export default function ChatWidget() {
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 60);
+  }, [open]);
+
+  // Escape minimises the window back to the button.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMode("button");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   useEffect(() => {
@@ -89,43 +101,57 @@ export default function ChatWidget() {
 
   if (!open) {
     return (
-      <button type="button" className="chat-fab" onClick={() => setOpen(true)} aria-label="Buka chat">
-        💬 <span>Chat</span>
-      </button>
+      <div className="rk chat-root">
+        <button type="button" className="kc-fab" onClick={() => setMode("window")}>
+          Chat sekarang
+        </button>
+      </div>
     );
   }
 
   const shown = lines.length ? lines : [GREETING];
+  const big = mode === "big";
 
   return (
-    <section className="chat-panel" role="dialog" aria-label="Chat dengan asisten kos">
-      <header className="chat-head">
-        <div>
-          <strong>Asisten kos</strong>
-          <span className="small muted">
-            {renter ? `Masuk sebagai ${renter.firstName}` : "Biasanya membalas dalam hitungan detik"}
-          </span>
+    <div className="rk chat-root">
+    <section className={`kc-win${big ? " big" : ""}`} role="dialog" aria-label="Chat dengan asisten kos">
+      <header className="kc-head">
+        <div className="kc-av" aria-hidden="true">RK</div>
+        <div className="kc-title">
+          <b>Asisten</b>
+          <small>{renter ? `Masuk sebagai ${renter.firstName}` : "Biasanya membalas langsung"}</small>
+          {renter ? (
+            <form method="post" action="/api/auth/logout">
+              <button className="chat-link" type="submit">Keluar</button>
+            </form>
+          ) : (
+            <a className="chat-link" href="/masuk">Masuk penghuni</a>
+          )}
         </div>
-        {renter ? (
-          <form method="post" action="/api/auth/logout">
-            <button className="chat-link" type="submit">Keluar</button>
-          </form>
-        ) : (
-          <a className="chat-link" href="/masuk">Masuk penghuni</a>
-        )}
-        <button type="button" className="chat-close" onClick={() => setOpen(false)} aria-label="Tutup chat">
-          ×
-        </button>
+        <div className="kc-ctl">
+          <button
+            type="button"
+            className="kc-big"
+            onClick={() => setMode(big ? "window" : "big")}
+            aria-label={big ? "Perkecil" : "Perbesar"}
+            title={big ? "Perkecil" : "Perbesar"}
+          >
+            {big ? "⤡" : "⤢"}
+          </button>
+          <button type="button" onClick={() => setMode("button")} aria-label="Kecilkan" title="Kecilkan jadi tombol">
+            –
+          </button>
+        </div>
       </header>
 
-      <div className="chat-list" ref={listRef} aria-live="polite">
+      <div className="kc-msgs" ref={listRef} aria-live="polite">
         {shown.map((line, i) => (
-          <div key={i} className={`chat-bubble chat-${line.role}`}>
+          <div key={i} className={`kc-b${line.role === "user" ? " me" : ""}`}>
             <Rich text={line.text} />
             {line.actions.length > 0 && (
-              <div className="chat-actions">
+              <div className="kc-actions">
                 {line.actions.map((a) => (
-                  <a key={a.path} className="btn btn-pri" href={a.path}>
+                  <a key={a.path} className="btn pri" href={a.path}>
                     {a.label}
                   </a>
                 ))}
@@ -133,11 +159,11 @@ export default function ChatWidget() {
             )}
           </div>
         ))}
-        {busy && <div className="chat-bubble chat-assistant chat-typing">mengetik…</div>}
+        {busy && <div className="kc-b kc-typing">mengetik…</div>}
       </div>
 
       <form
-        className="chat-input"
+        className="kc-inp"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
@@ -157,11 +183,12 @@ export default function ChatWidget() {
             }
           }}
         />
-        <button className="btn btn-pri" type="submit" disabled={busy || !draft.trim()}>
+        <button className="btn pri" type="submit" disabled={busy || !draft.trim()}>
           Kirim
         </button>
       </form>
     </section>
+    </div>
   );
 }
 
