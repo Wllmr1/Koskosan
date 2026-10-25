@@ -67,21 +67,38 @@ export async function roomOpenOn(applicationId: string | null, roomId: string, m
   return !(await roomHeldByAnother(applicationId, roomId));
 }
 
-/** First visible room of a type (by sortOrder, then code) that is open on the move-in date. */
-export async function firstOpenRoomOfType(type: { slug: string } | { id: string }, moveIn: Date) {
+/**
+ * The room of a type to give someone moving in on `moveIn`.
+ * - Moving in today (or earlier): a room free now first (by sortOrder, then
+ *   code), then any other room open that day.
+ * - Moving in later: an occupied room freeing up on or before that date is
+ *   preferred — the one freeing up LATEST — so rooms free now stay free for
+ *   people who want to move in sooner. Failing that, a room free now.
+ */
+export async function firstOpenRoomOfType(type: { slug: string } | { id: string }, moveIn: Date, now = new Date()) {
   const candidates = await prisma.room.findMany({
     where: { hidden: false, roomType: type },
     orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
   });
-  for (const c of candidates) {
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const ordered =
+    moveIn.getTime() > today
+      ? [
+          ...candidates
+            .filter((c) => c.status === RoomStatus.OCCUPIED && c.availableOn && c.availableOn.getTime() <= moveIn.getTime())
+            .sort((a, b) => b.availableOn!.getTime() - a.availableOn!.getTime()),
+          ...candidates.filter((c) => !(c.status === RoomStatus.OCCUPIED && c.availableOn)),
+        ]
+      : [...candidates.filter((c) => c.status === RoomStatus.AVAILABLE), ...candidates.filter((c) => c.status !== RoomStatus.AVAILABLE)];
+  for (const c of ordered) {
     if (await roomOpenOn(null, c.id, moveIn)) return c;
   }
   return null;
 }
 
 /**
- * Starts the sign-up flow for a room TYPE: the system picks the first room
- * (by sortOrder, then code) that is open on the move-in date.
+ * Starts the sign-up flow for a room TYPE: the system picks the room with
+ * firstOpenRoomOfType (see there for which one).
  */
 export async function createApplicationForType(opts: {
   contactId: string | null;

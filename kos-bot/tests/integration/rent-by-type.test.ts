@@ -106,6 +106,26 @@ describe("createApplicationForType", () => {
     expect(app.moveInDate?.toISOString()).toBe("2027-01-15T00:00:00.000Z");
   });
 
+  it("for a later move-in, takes the room freeing up latest before that date and keeps free rooms free", async () => {
+    const { slug, rooms } = await typeWith([
+      {},
+      { status: RoomStatus.OCCUPIED, availableOn: date("2027-01-10") },
+      { status: RoomStatus.OCCUPIED, availableOn: date("2027-01-20") },
+    ]);
+    const start = async (moveIn: string) =>
+      (await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date(moveIn) })).room.id;
+    expect(await start("2027-01-15")).toBe(rooms[1].id);
+    expect(await start("2027-01-25")).toBe(rooms[2].id);
+    expect(await start("2027-01-05")).toBe(rooms[0].id);
+  });
+
+  it("for a move-in today, takes a room free now first", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { slug, rooms } = await typeWith([{ status: RoomStatus.OCCUPIED, availableOn: date("2026-01-01") }, {}]);
+    const out = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date(today) });
+    expect(out.room.id).toBe(rooms[1].id);
+  });
+
   it("does not offer a room someone else is in the middle of booking", async () => {
     const { slug } = await typeWith([{ status: RoomStatus.BOOKED }]);
     await expect(
