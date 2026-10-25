@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LeasePlan } from "@prisma/client";
-import { ApplicationError, createApplication } from "@/lib/application";
+import { ApplicationError, createApplication, createApplicationForType } from "@/lib/application";
 import { resolveWebContext } from "@/lib/chat/context";
 import { clientIp, sameOrigin } from "@/lib/http";
 import { log } from "@/lib/logger";
@@ -20,13 +20,22 @@ export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return new NextResponse("forbidden", { status: 403 });
 
   const form = await req.formData();
+  const typeSlug = String(form.get("type") ?? "").trim().toLowerCase().slice(0, 60);
   const code = String(form.get("room") ?? "").trim().toUpperCase().slice(0, 20);
   const plan = String(form.get("plan") ?? "") === "tahunan" ? LeasePlan.YEARLY : LeasePlan.MONTHLY;
+  const back = typeSlug || code;
   const backToRoom = (reason: string) =>
-    NextResponse.redirect(new URL(`/kamar/${encodeURIComponent(code)}?sewa=${reason}`, req.url), { status: 303 });
+    NextResponse.redirect(new URL(`/kamar/${encodeURIComponent(back)}?sewa=${reason}`, req.url), { status: 303 });
 
-  if (!/^[A-Z0-9-]{2,20}$/.test(code)) return NextResponse.redirect(new URL("/kamar", req.url), { status: 303 });
+  if (typeSlug ? !/^[a-z0-9-]{1,60}$/.test(typeSlug) : !/^[A-Z0-9-]{2,20}$/.test(code)) {
+    return NextResponse.redirect(new URL("/kamar", req.url), { status: 303 });
+  }
   if (await overLimit("apply-web", clientIp(req), 5, 3_600_000)) return backToRoom("batas");
+
+  // Calendar date as UTC midnight; absent, malformed or in the past means today.
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const asked = new Date(`${String(form.get("moveIn") ?? "")}T00:00:00Z`);
+  const moveIn = Number.isNaN(asked.getTime()) || asked < today ? today : asked;
 
   let anonId = anonIdFromCookie(req.cookies.get(CHAT_COOKIE)?.value);
   let newCookie: string | null = null;
@@ -38,7 +47,9 @@ export async function POST(req: NextRequest) {
   const ctx = await resolveWebContext({ anonId, tenantId: null });
 
   try {
-    const { reference, token } = await createApplication({ contactId: ctx.contactId, roomCode: code, plan });
+    const { reference, token } = typeSlug
+      ? await createApplicationForType({ contactId: ctx.contactId, typeSlug, plan, moveIn })
+      : await createApplication({ contactId: ctx.contactId, roomCode: code, plan });
     log.info("application started on website", { reference });
     const res = NextResponse.redirect(new URL(`/apply/${token}`, req.url), { status: 303 });
     if (newCookie) setChatCookie(res, newCookie);

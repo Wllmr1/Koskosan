@@ -49,6 +49,13 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
           size: app.room.roomType.sizeLabel,
           price: rp(app.room.roomType.monthlyPrice),
         }}
+        moveIn={{
+          min:
+            app.room.status === "OCCUPIED" && app.room.availableOn
+              ? app.room.availableOn.toISOString().slice(0, 10)
+              : new Date().toISOString().slice(0, 10),
+          value: app.moveInDate ? app.moveInDate.toISOString().slice(0, 10) : undefined,
+        }}
         plan={app.plan === "YEARLY" ? "tahunan" : "bulanan"}
         startStep={clauses.length ? 2 : 1}
         contractHash={contract ? contractHash(contract) : ""}

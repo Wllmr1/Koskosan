@@ -6,6 +6,7 @@ type Props = {
   token: string;
   propertyName: string;
   reference: string;
+  moveIn: { min: string; value?: string };
   room: { code: string; type: string; size: string; price: string };
   plan: string;
   startStep: number;
@@ -233,7 +234,7 @@ export default function ApplyFlow(props: Props) {
             </div>
 
             <Field label="Tanggal mulai masuk" error={errors.moveInDate}>
-              <input name="moveInDate" type="date" min={today} defaultValue={today} required />
+              <input name="moveInDate" type="date" min={props.moveIn.min} defaultValue={props.moveIn.value ?? props.moveIn.min} required />
             </Field>
 
             <button className="btn btn-pri" type="submit" disabled={busy} style={{ width: "100%", marginTop: 6 }}>

@@ -3,13 +3,13 @@ import { ApplicationStatus, InvoiceKind, RoomStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
-import { normalizePhone, rp } from "@/lib/money";
+import { niceDate, normalizePhone, rp } from "@/lib/money";
 import { putObject, validateImage } from "@/lib/storage";
 import { hashPassword, passwordProblem } from "@/lib/password";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { clientIp } from "@/lib/http";
-import { buildContractData, findApplicationByToken, onboardingAmount, roomHeldByAnother, termMonths } from "@/lib/application";
+import { buildContractData, findApplicationByToken, onboardingAmount, roomOpenOn, termMonths } from "@/lib/application";
 import { buildContractPdf, contractHash } from "@/lib/contract";
 import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
 
@@ -59,8 +59,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Formulir ini sudah diproses." }, { status: 409 });
   }
 
+  const moveIn = new Date(`${data.moveInDate}T00:00:00Z`);
+  if (Number.isNaN(moveIn.getTime())) return NextResponse.json({ error: "Tanggal masuk tidak valid." }, { status: 400 });
+  if (app.room.status === RoomStatus.OCCUPIED && app.room.availableOn && moveIn < app.room.availableOn) {
+    return NextResponse.json({ error: `Tanggal masuk paling cepat ${niceDate(app.room.availableOn)}.` }, { status: 400 });
+  }
+
   // Re-submission is allowed (they went back a step), but the room must still be free.
-  if (!(await roomStillOpenFor(app.id, app.roomId))) {
+  if (!(await roomOpenOn(app.id, app.roomId, moveIn))) {
     return NextResponse.json(
       { error: "Maaf, kamar ini baru saja diambil orang lain. Minta pilihan kamar lain lewat WhatsApp ya kak." },
       { status: 409 }
@@ -113,7 +119,7 @@ export async function POST(req: NextRequest) {
       idLast4: idDigits.slice(-4),
       ktpObjectKey: ktpKey,
       passwordHash,
-      moveInDate: new Date(`${data.moveInDate}T00:00:00Z`),
+      moveInDate: moveIn,
       status: ApplicationStatus.DETAILS_SUBMITTED,
     },
   });
@@ -165,7 +171,7 @@ export async function PUT(req: NextRequest) {
   if (app.status === ApplicationStatus.COMPLETED) {
     return NextResponse.json({ error: "Sudah selesai." }, { status: 409 });
   }
-  if (!(await roomStillOpenFor(app.id, app.roomId))) {
+  if (!(await roomOpenOn(app.id, app.roomId, app.moveInDate ?? new Date()))) {
     return NextResponse.json({ error: "Maaf, kamar ini sudah tidak tersedia." }, { status: 409 });
   }
 
@@ -229,12 +235,4 @@ export async function PUT(req: NextRequest) {
 
   log.info("application signed", { reference: app.reference, invoice: invoice.code });
   return NextResponse.json({ ok: true, paymentUrl, amount: rp(amount) });
-}
-
-/** The room is free, or held (BOOKED) by this very application and nobody else. */
-async function roomStillOpenFor(applicationId: string, roomId: string): Promise<boolean> {
-  const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { status: true, hidden: true } });
-  if (room.hidden) return false;
-  if (room.status !== RoomStatus.AVAILABLE && room.status !== RoomStatus.BOOKED) return false;
-  return !(await roomHeldByAnother(applicationId, roomId));
 }

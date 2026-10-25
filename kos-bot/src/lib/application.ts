@@ -46,6 +46,69 @@ export async function createApplication(opts: { contactId: string | null; roomCo
   return { reference, token: raw, room };
 }
 
+/**
+ * Can this room be rented for a move-in on `moveIn` (a calendar date stored as
+ * UTC midnight)? Visible, not held by someone else's live application, and
+ * either free, occupied but freeing up by then, or (only when we pass our own
+ * application) held by us. With no application of our own yet, a BOOKED room
+ * is someone else's in-progress application and is not open.
+ */
+export async function roomOpenOn(applicationId: string | null, roomId: string, moveIn: Date): Promise<boolean> {
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { status: true, hidden: true, availableOn: true },
+  });
+  if (!room || room.hidden) return false;
+  const statusOk =
+    room.status === RoomStatus.AVAILABLE ||
+    (room.status === RoomStatus.BOOKED && applicationId !== null) ||
+    (room.status === RoomStatus.OCCUPIED && room.availableOn !== null && room.availableOn.getTime() <= moveIn.getTime());
+  if (!statusOk) return false;
+  return !(await roomHeldByAnother(applicationId, roomId));
+}
+
+/**
+ * Starts the sign-up flow for a room TYPE: the system picks the first room
+ * (by sortOrder, then code) that is open on the move-in date.
+ */
+export async function createApplicationForType(opts: {
+  contactId: string | null;
+  typeSlug: string;
+  plan: LeasePlan;
+  moveIn: Date;
+}) {
+  const candidates = await prisma.room.findMany({
+    where: { hidden: false, roomType: { slug: opts.typeSlug } },
+    orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+  });
+  if (!candidates.length) throw new ApplicationError("not_found", `No room type called ${opts.typeSlug}.`);
+
+  let room = null;
+  for (const c of candidates) {
+    if (await roomOpenOn(null, c.id, opts.moveIn)) {
+      room = c;
+      break;
+    }
+  }
+  if (!room) throw new ApplicationError("unavailable", `No ${opts.typeSlug} room is open on that date.`);
+
+  const { raw, hash } = newToken();
+  const count = await prisma.application.count();
+  const reference = `APP-${String(1000 + count + 1)}`;
+  await prisma.application.create({
+    data: {
+      reference,
+      tokenHash: hash,
+      contactId: opts.contactId,
+      roomId: room.id,
+      plan: opts.plan,
+      moveInDate: opts.moveIn,
+      expiresAt: new Date(Date.now() + APPLICATION_TTL_MS),
+    },
+  });
+  return { reference, token: raw, room };
+}
+
 /** Looks up an application by the raw token from the URL. Never stores the raw value. */
 export async function findApplicationByToken(rawToken: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(rawToken)) return null;
@@ -64,11 +127,11 @@ export async function findApplicationByToken(rawToken: string) {
  * (they submitted details, or signed and are paying). Prevents two people
  * signing and paying for the same room.
  */
-export async function roomHeldByAnother(applicationId: string, roomId: string): Promise<boolean> {
+export async function roomHeldByAnother(applicationId: string | null, roomId: string): Promise<boolean> {
   const other = await prisma.application.findFirst({
     where: {
       roomId,
-      id: { not: applicationId },
+      ...(applicationId ? { id: { not: applicationId } } : {}),
       expiresAt: { gt: new Date() },
       status: { in: [ApplicationStatus.DETAILS_SUBMITTED, ApplicationStatus.SIGNED, ApplicationStatus.AWAITING_PAYMENT] },
     },
