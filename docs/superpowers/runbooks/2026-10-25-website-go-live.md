@@ -26,26 +26,29 @@ npm run db:photos -- <folder>   # one flat folder; files named by type, e.g. vip
 npm test                    # optional: proves the suite on TEST_DATABASE_URL
 ```
 
-## 3. Merge order with `admin-security`
+## 3. Dashboard logins (done — `admin-security` is merged)
 
-The other checkout (`chatbotDEMO`, branch `admin-security`, uncommitted) also
-changes `prisma/schema.prisma` and the admin routes, and replaces the old owner
-check: `isOwner()` (src/lib/auth.ts) becomes `isAdmin` / `requireAdmin` /
-`requireOwner`, and dashboard POSTs use `adminPostGuard` + `auditActor()`
-instead of `ownerPostGuard` + `actor: "owner"` (there `ownerPostGuard` still
-exists but now means "the owner only, not staff admins").
+Branch `admin-accounts` merged `admin-security` onto this redesign: the
+room-type work is kept, and every dashboard page and POST now checks the
+login (`requireAdmin` / `adminPostGuard`) and names who did it in the audit
+log (`owner` or `admin:<email>`). After pulling it, run `npx prisma db push`
+once (it only adds the `Admin`, `AdminSession` and `AdminSetupToken` tables).
 
-Whichever branch lands second:
+**The owner logs in** at `/admin/login` with `OWNER_EMAIL` + `ADMIN_PASSWORD`
+from `.env` (`OWNER_NAME` is the name shown as "Masuk sebagai …"). To change
+the owner's password, change `ADMIN_PASSWORD` and restart.
 
-1. Merge `schema.prisma` by hand (keep both sets of models), then
-   `npx prisma db push` again.
-2. Port `src/app/api/admin/data/room-types/route.ts` to the guard in use
-   (`adminPostGuard` and `actor: await auditActor()` if `admin-security` is
-   in), and check `src/app/admin/data/tipe/*` sits behind the same admin layout
-   guard as the other `/admin/data` pages.
-3. Re-check `src/app/api/admin/data/rooms/route.ts`: on this branch a room no
-   longer has its own price/size/bathroom fields (they live on its type).
-4. `npm run typecheck && npm test && npm run build`.
+**Adding a helper (staff):** owner → Dashboard → **Kelola admin** → "Tambah
+admin" (name + email). The next page shows a one-time link once — copy it and
+send it to the helper on WhatsApp. It works for 24 hours, once; the helper opens
+it, chooses a password (minimum 10 characters), then logs in at
+`/admin/login` with their email. Lost or expired link → "Buat link baru".
+"Nonaktifkan" logs the helper out at once and blocks login; "Aktifkan" lets
+them back in with the same password. Helpers can do everything in the
+dashboard except Kelola admin.
+
+Every login ends after 30 minutes without activity and after 4 hours in any
+case. Login attempts are limited to 8 per IP per 15 minutes.
 
 ## 4. Known, pre-existing
 
