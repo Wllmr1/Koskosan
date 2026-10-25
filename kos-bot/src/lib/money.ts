@@ -43,3 +43,10 @@ export function normalizePhone(input: string): string | null {
   if (!/^\d{9,15}$/.test(d)) return null;
   return "+" + d;
 }
+
+/** What is paid at signing on the monthly plan: the first month's rent plus the deposit. */
+export function firstPayment(monthlyPrice: number, depositMonths: number) {
+  const rent = monthlyPrice;
+  const deposit = monthlyPrice * depositMonths;
+  return { rent, deposit, total: rent + deposit };
+}

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { brandLine, fillSlots, isActive, SITE_NAV } from "@/lib/site";
+import { brandLine, fillSlots, heroPhotos, isActive, roman, SITE_NAV } from "@/lib/site";
 
 describe("site navigation", () => {
   it("lists the seven pages in menu order", () => {
@@ -73,5 +73,32 @@ describe("site shell", () => {
     expect(brandLine("Hunian butik dekat kampus")).toBe("Kost · Hunian butik dekat kampus");
     const long = "Kos mahasiswa putri dengan kontrak digital";
     expect(brandLine(long)).toBe(long);
+  });
+});
+
+describe("roman numerals", () => {
+  it("numbers list items", () => {
+    expect([1, 2, 4, 6, 9, 12].map(roman)).toEqual(["i", "ii", "iv", "vi", "ix", "xii"]);
+  });
+});
+
+describe("heroPhotos", () => {
+  const covers = [
+    { slug: "standar", cover: "std" },
+    { slug: "vip-1", cover: "v1" },
+    { slug: "standard-new", cover: null },
+    { slug: "vip-a", cover: "va" },
+  ];
+
+  it("uses the property gallery when it has at least three photos", () => {
+    expect(heroPhotos(["a", "b", "c", "d"], covers)).toEqual(["a", "b", "c"]);
+  });
+
+  it("otherwise uses type covers in the preferred order, skipping missing ones", () => {
+    expect(heroPhotos(["a"], covers)).toEqual(["va", "v1", "std"]);
+  });
+
+  it("is empty when nothing has a photo", () => {
+    expect(heroPhotos([], [{ slug: "vip-a", cover: null }])).toEqual([]);
   });
 });

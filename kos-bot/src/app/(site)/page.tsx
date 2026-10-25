@@ -1,80 +1,148 @@
-import { RoomStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { rp } from "@/lib/money";
+import { rp, wibNow } from "@/lib/money";
+import { listRoomTypes } from "@/lib/room-types";
+import { heroPhotos } from "@/lib/site";
+import { photoUrl } from "@/lib/photos";
 import OpenChatButton from "@/components/OpenChatButton";
-import { PhotoGrid, PhotoSlot } from "@/components/site/PhotoSlot";
 import { NoData } from "@/components/site/ui";
 
 export const dynamic = "force-dynamic";
 
+const EYEBROW = "Hunian butik dekat kampus";
+const SHOWCASE = ["standard-new", "vip-a"];
+
 /**
- * Beranda: a short welcome and a way into each page. The site is also the
- * assistant's information source — both read the same rows, so the bot can
- * never quote a price the site does not show.
+ * Beranda: hero, booking bar, two showcased room types and a line into each other page.
+ * Every figure comes from the same rows the assistant reads.
  */
 export default async function HomePage() {
-  const [settings, rooms, services, nearby, faqCount, gallery] = await Promise.all([
+  const [settings, types, services, nearby, faqCount, gallery] = await Promise.all([
     prisma.propertySetting.findUnique({ where: { id: "default" } }),
-    prisma.room.findMany({ where: { hidden: false }, select: { status: true, roomType: { select: { monthlyPrice: true } } } }),
+    listRoomTypes(),
     prisma.service.count(),
     prisma.nearbyPlace.findMany({ orderBy: { sortOrder: "asc" }, take: 2 }),
     prisma.faqEntry.count(),
-    prisma.photo.findMany({ where: { roomTypeId: null }, orderBy: { sortOrder: "asc" }, take: 8 }),
+    prisma.photo.findMany({ where: { roomTypeId: null }, orderBy: { sortOrder: "asc" }, take: 3 }),
   ]);
   if (!settings) return <NoData />;
 
-  const available = rooms.filter((r) => r.status === RoomStatus.AVAILABLE).length;
-  const cheapest = rooms.length ? Math.min(...rooms.map((r) => r.roomType.monthlyPrice)) : 0;
-  const [heroPhoto, ...restOfGallery] = gallery;
+  const free = types.reduce((sum, t) => sum + t.availability.free, 0);
+  const cheapest = types.length ? Math.min(...types.map((t) => t.monthlyPrice)) : 0;
+  const hero = heroPhotos(gallery, types.map((t) => ({ slug: t.slug, cover: t.photos[0] ?? null })));
+  const eyebrow = settings.tagline.trim().toLowerCase() === EYEBROW.toLowerCase() ? settings.address : EYEBROW;
+  const showcase = SHOWCASE.map((slug) => types.find((t) => t.slug === slug)).filter((t) => !!t);
 
-  const pages = [
-    { href: "/kamar", title: "Kamar", text: `${available} dari ${rooms.length} kamar tersedia, mulai ${rp(cheapest)} per bulan.` },
-    { href: "/fasilitas", title: "Fasilitas", text: `${settings.facilities.length} fasilitas di dalam kos dan ${services} layanan berbayar seperti laundry.` },
-    { href: "/biaya", title: "Biaya", text: `Bulanan atau tahunan, bayar ${settings.yearlyMonths} bulan untuk 12. Deposit ${settings.depositMonths}× sewa.` },
-    {
-      href: "/lokasi",
-      title: "Lokasi",
-      text: nearby.length ? nearby.map((n) => `${n.name}, ${n.distance}`).join("; ") + "." : settings.address,
-    },
-    { href: "/aturan", title: "Aturan", text: `${settings.houseRules.length} aturan rumah dan cara mendaftarkan tamu menginap.` },
-    { href: "/faq", title: "FAQ", text: `${faqCount} pertanyaan yang paling sering ditanyakan calon penghuni.` },
+  const lead = [
+    settings.facilities.length ? `${settings.facilities.length} fasilitas di dalam kos` : "",
+    types.length ? `${types.length} tipe kamar mulai ${rp(cheapest)} per bulan` : "",
+    free ? `${free} kamar tersedia sekarang` : "",
+  ].filter(Boolean);
+
+  const doors = [
+    { href: "/fasilitas", title: "Fasilitas", text: `${settings.facilities.length} fasilitas di dalam kos, ${services} layanan berbayar` },
+    { href: "/biaya", title: "Biaya", text: `Bayar bulanan atau tahunan, deposit ${settings.depositMonths}× sewa` },
+    { href: "/lokasi", title: "Lokasi", text: nearby.length ? nearby.map((n) => `${n.name}, ${n.distance}`).join("; ") : settings.address },
+    { href: "/aturan", title: "Aturan", text: `${settings.houseRules.length} aturan rumah dan aturan tamu menginap` },
+    { href: "/faq", title: "FAQ", text: `${faqCount} pertanyaan yang paling sering ditanyakan` },
   ];
 
   return (
     <>
       <section className="hero">
-        <div className="hero-text">
-          <h1 className="hero-title">{settings.tagline}</h1>
-          <p className="hero-sub">
-            {settings.address}. Tanya apa saja ke asisten kami, kapan saja, langsung dibalas.
-          </p>
-          <div className="hero-actions">
-            <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya kamar kosong</OpenChatButton>
-            <a className="btn" href="/kamar">Lihat semua kamar</a>
+        <div className="lbl">{eyebrow}</div>
+        <h1 style={{ marginTop: 22 }}>{settings.tagline}</h1>
+        {lead.length > 0 && <p className="lead">{lead.join(". ")}.</p>}
+        <div className="cta">
+          <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya asisten</OpenChatButton>
+          <a className="btn" href="/kamar">Lihat tipe kamar</a>
+        </div>
+
+        <div className="tri">
+          {hero.length ? (
+            hero.map((p) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={p.id} src={photoUrl(p.key)} alt={p.caption || settings.name} width={p.width} height={p.height} />
+            ))
+          ) : (
+            <div className="ph" role="img" aria-label={`${settings.name}, foto segera hadir`}>Foto segera hadir</div>
+          )}
+        </div>
+
+        <form className="book" action="/kamar" method="get">
+          <div className="f">
+            <label className="lbl" htmlFor="bt">Tipe kamar</label>
+            <select id="bt" name="tipe" defaultValue="">
+              <option value="">Semua tipe</option>
+              {types.map((t) => (
+                <option key={t.id} value={t.slug}>{t.name}</option>
+              ))}
+            </select>
           </div>
-          <dl className="hero-facts">
-            <div><dt>Mulai per bulan</dt><dd>{rp(cheapest)}</dd></div>
-            <div><dt>Kamar tersedia</dt><dd>{available} dari {rooms.length}</dd></div>
-            <div><dt>Listrik termasuk</dt><dd>{settings.electricQuota} kWh</dd></div>
-          </dl>
-        </div>
-        <div className="hero-arch">
-          <PhotoSlot photo={heroPhoto ?? null} alt={settings.name} ratio="3 / 4" />
-        </div>
+          <div className="f">
+            <label className="lbl" htmlFor="bd">Tanggal masuk</label>
+            <input id="bd" name="masuk" type="date" min={wibNow().date} />
+          </div>
+          <div className="f">
+            <label className="lbl" htmlFor="bl">Lama tinggal</label>
+            <select id="bl" name="lama" defaultValue="bulanan">
+              <option value="bulanan">Bulanan (min. {settings.minMonths} bulan)</option>
+              <option value="tahunan">Tahunan (12 bulan)</option>
+            </select>
+          </div>
+          <button className="btn pri" type="submit">Cek ketersediaan</button>
+        </form>
       </section>
 
-      <section className="home-gallery" aria-label="Foto kos">
-        <PhotoGrid photos={restOfGallery} slots={3} alt={settings.name} min={200} />
+      <section className="page" style={{ paddingTop: 96 }}>
+        {showcase.length > 0 && (
+          <>
+            <div className="sec-head">
+              <div className="lbl">Koleksi kamar</div>
+              <h2>Pilih tipe kamar Anda.</h2>
+              <p>
+                Harga sudah termasuk kuota listrik {settings.electricQuota} kWh. {settings.utilitiesNote}.
+              </p>
+            </div>
+            <div className="types" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(320px,100%),1fr))" }}>
+              {showcase.map((t) => {
+                const cover = t.photos[0];
+                return (
+                  <a key={t.id} className="type" href={`/kamar/${t.slug}`}>
+                    {cover ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoUrl(cover.key)} alt={cover.caption || `Kamar ${t.name}`} width={cover.width} height={cover.height} style={{ height: 420 }} />
+                    ) : (
+                      <div className="ph" role="img" aria-label={`Kamar ${t.name}, foto segera hadir`}>Foto segera hadir</div>
+                    )}
+                    <span className="tag" style={{ display: "inline-block", marginTop: 16 }}>
+                      {[t.isNew ? "Kos baru" : "Kos lama", t.isVip ? "VIP" : ""].filter(Boolean).join(" · ")}
+                    </span>
+                    <h3 style={{ marginTop: 10 }}>{t.name}</h3>
+                    <p>
+                      {t.description.split("\n")[0]}
+                      {t.description && " · "}
+                      <b style={{ color: t.availability.free > 0 ? "var(--ok)" : "var(--warn)", fontWeight: 500 }}>
+                        {t.availability.free > 0 ? `${t.availability.free} kamar tersedia` : "Penuh"}
+                      </b>
+                    </p>
+                  </a>
+                );
+              })}
+            </div>
+          </>
+        )}
+        <p style={{ marginTop: 28 }}>
+          <a className="btn" href="/kamar">Lihat ketujuh tipe kamar</a>
+        </p>
+        <div className="doors">
+          {doors.map((d) => (
+            <a key={d.href} className="door" href={d.href}>
+              <b>{d.title}</b>
+              <span>{d.text}</span>
+            </a>
+          ))}
+        </div>
       </section>
-
-      <nav className="page-index" aria-label="Info kos">
-        {pages.map((p) => (
-          <a key={p.href} href={p.href} className="page-index-row">
-            <span className="page-index-title">{p.title}</span>
-            <span className="page-index-text">{p.text}</span>
-          </a>
-        ))}
-      </nav>
     </>
   );
 }

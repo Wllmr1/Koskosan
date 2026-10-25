@@ -227,3 +227,8 @@
 .rk .opts input:checked+span{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .rk .opts input:focus-visible+span{outline:2px solid var(--ink);outline-offset:2px}
 .rk .rent .form label{margin-top:0}
+.rk .tri .ph,.rk .type .ph{display:flex;align-items:center;justify-content:center;background:var(--photo);color:var(--ink-3);font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+.rk .tri .ph{grid-column:1/-1;height:520px}
+.rk .type .ph{height:420px}
+@media (max-width:760px){.rk .tri .ph{height:380px}}
+.rk .chat-link{background:none;border:0;padding:0;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
