@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { clearDemoData } from "@/lib/demo";
+import { createLocalInvoice } from "@/lib/billing";
 import { makeRoom, uniq } from "../helpers";
 
 /**
@@ -22,6 +23,8 @@ beforeAll(async () => {
     include: { room: true },
   });
   demoRooms = leases.map((l) => ({ id: l.room.id, code: l.room.code, status: l.room.status, availableOn: l.room.availableOn }));
+  // A bill on a demo lease, created before the real renter's, so clearing it lowers the invoice count.
+  await createLocalInvoice({ kind: InvoiceKind.RENT, description: "Sewa demo", amount: 1_000_000, dueDate: new Date("2026-11-05"), leaseId: leases[0].id });
 
   // A real renter whose account code merely contains "DEMO", on a room of their own.
   const id = uniq();
@@ -32,9 +35,7 @@ beforeAll(async () => {
   const lease = await prisma.lease.create({
     data: { tenantId: tenant.id, roomId: room.id, plan: "MONTHLY", monthlyRent: 1_000_000, deposit: 1_000_000, startDate: new Date("2026-06-01"), endDate: new Date("2027-06-01"), status: LeaseStatus.ACTIVE },
   });
-  const invoice = await prisma.invoice.create({
-    data: { code: `INV-R-${id}`, leaseId: lease.id, kind: InvoiceKind.RENT, description: "Sewa", amount: 1_000_000, dueDate: new Date("2026-11-05") },
-  });
+  const invoice = await createLocalInvoice({ kind: InvoiceKind.RENT, description: "Sewa", amount: 1_000_000, dueDate: new Date("2026-11-05"), leaseId: lease.id });
   [realTenant, realLease, realRoom, realInvoice] = [tenant.id, lease.id, room.id, invoice.id];
 });
 
@@ -63,6 +64,11 @@ describe("clearing the demo renters", () => {
     expect((await prisma.lease.findUniqueOrThrow({ where: { id: realLease } })).status).toBe(LeaseStatus.ACTIVE);
     expect(await prisma.invoice.findUnique({ where: { id: realInvoice } })).not.toBeNull();
     expect((await prisma.room.findUniqueOrThrow({ where: { id: realRoom } })).status).toBe(RoomStatus.OCCUPIED);
+  });
+
+  it("new bills still get a free invoice code after demo bills were deleted", async () => {
+    const next = await createLocalInvoice({ kind: InvoiceKind.RENT, description: "Sewa berikutnya", amount: 1_000_000, dueDate: new Date("2026-12-05"), leaseId: realLease });
+    expect(next.code).not.toBe((await prisma.invoice.findUniqueOrThrow({ where: { id: realInvoice } })).code);
   });
 
   it("a second run removes nothing", async () => {

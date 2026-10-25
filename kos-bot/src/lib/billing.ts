@@ -7,8 +7,12 @@ import { fakePaymentsAllowed, paymentsLive } from "./features";
 /** Human-readable invoice codes: INV-RENT-2610-0042 */
 export async function nextInvoiceCode(prefix: string): Promise<string> {
   const stamp = new Date().toISOString().slice(2, 7).replace("-", "");
-  const n = await prisma.invoice.count();
-  return `INV-${prefix}-${stamp}-${String(n + 1).padStart(4, "0")}`;
+  // Count-based, so after invoices are deleted (e.g. npm run db:demo:clear)
+  // the next number may already be taken: step past any code in use.
+  for (let n = (await prisma.invoice.count()) + 1; ; n++) {
+    const code = `INV-${prefix}-${stamp}-${String(n).padStart(4, "0")}`;
+    if (!(await prisma.invoice.findUnique({ where: { code }, select: { id: true } }))) return code;
+  }
 }
 
 /**
