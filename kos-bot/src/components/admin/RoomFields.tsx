@@ -1,6 +1,6 @@
 import type { Room, RoomType } from "@prisma/client";
 import { RoomStatus } from "@prisma/client";
-import { Area, Num, Text } from "./Fields";
+import { Num, Text } from "./Fields";
 
 const STATUS: Record<RoomStatus, string> = {
   AVAILABLE: "Tersedia",
@@ -10,16 +10,21 @@ const STATUS: Record<RoomStatus, string> = {
 };
 
 /** The same fields for "add room" and "edit room". */
-export default function RoomFields({ room }: { room?: Room & { roomType: RoomType } }) {
+export default function RoomFields({ room, types }: { room?: Room; types: Pick<RoomType, "id" | "name">[] }) {
   return (
     <div className="admin-grid">
       <Text name="code" label="Kode kamar" value={room?.code} max={12} hint="Contoh: B-204" />
-      <Text name="type" label="Tipe" value={room?.roomType.name} max={40} hint="Standard / Deluxe / Studio" />
+      <div className="admin-field">
+        <label htmlFor="roomTypeId">Tipe kamar</label>
+        <select id="roomTypeId" name="roomTypeId" defaultValue={room?.roomTypeId ?? ""} required>
+          <option value="" disabled>Pilih tipe</option>
+          {types.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        <small>Harga, ukuran, dan foto diatur di <a href="/admin/data/tipe">Tipe kamar</a>.</small>
+      </div>
       <Num name="floor" label="Lantai" value={room?.floor ?? 1} min={0} max={50} />
-      <Text name="sizeLabel" label="Ukuran" value={room?.roomType.sizeLabel} max={40} hint="Contoh: 3 × 4 m" />
-      <Num name="monthlyPrice" label="Harga per bulan (Rp)" value={room?.roomType.monthlyPrice ?? 1_000_000} min={100_000} step={10_000} />
-      <Text name="bathroom" label="Kamar mandi" value={room?.roomType.bathroom} max={80} />
-      <Text name="extras" label="Isi kamar" value={room?.roomType.extras} max={300} hint="AC, kasur, lemari, …" />
       <div className="admin-field">
         <label htmlFor="status">Status</label>
         <select id="status" name="status" defaultValue={room?.status ?? RoomStatus.AVAILABLE}>
@@ -34,7 +39,6 @@ export default function RoomFields({ room }: { room?: Room & { roomType: RoomTyp
         <small>Hanya untuk kamar yang belum tersedia.</small>
       </div>
       <Num name="sortOrder" label="Urutan tampil" value={room?.sortOrder ?? 0} min={0} max={999} />
-      <Area name="description" label="Deskripsi" value={room?.roomType.description} hint="Tampil di halaman kamar." />
       <label className="admin-check admin-wide">
         <input type="checkbox" name="hidden" defaultChecked={room?.hidden ?? false} /> Sembunyikan dari situs dan asisten
       </label>

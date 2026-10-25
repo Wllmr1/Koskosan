@@ -164,16 +164,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     </select>
                   </td>
                   <td>
-                    <input
-                      form={formId}
-                      name="monthlyPrice"
-                      type="number"
-                      min={100000}
-                      step={10000}
-                      defaultValue={room.roomType.monthlyPrice}
-                      aria-label={`Harga ${room.code}`}
-                      style={{ minWidth: 130 }}
-                    />
+                    {rp(room.roomType.monthlyPrice)}
+                    <small><a href={`/admin/data/tipe/${room.roomTypeId}`}>Ubah harga tipe</a></small>
                   </td>
                   <td>
                     <input

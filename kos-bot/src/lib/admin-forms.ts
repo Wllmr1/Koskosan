@@ -44,13 +44,8 @@ export function parseProperty(form: FormData) {
 
 export const roomSchema = z.object({
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{2,12}$/, "huruf, angka, dan tanda - saja"),
-  type: text(2, 40),
+  roomTypeId: z.string().min(1, "pilih tipe kamar"),
   floor: int(0, 50),
-  sizeLabel: text(1, 40),
-  monthlyPrice: int(100_000, 100_000_000),
-  bathroom: text(2, 80),
-  extras: z.string().trim().max(300),
-  description: z.string().trim().max(1500),
   status: z.nativeEnum(RoomStatus),
   availableOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
   sortOrder: int(0, 999),
@@ -59,6 +54,30 @@ export const roomSchema = z.object({
 
 export function parseRoom(form: FormData) {
   return roomSchema.safeParse({ ...Object.fromEntries(form.entries()), hidden: form.get("hidden") === "on" });
+}
+
+export const roomTypeSchema = z.object({
+  name: text(2, 40),
+  slug: z.string().trim().regex(/^[a-z0-9-]{2,40}$/, "huruf kecil, angka, dan tanda - saja"),
+  sizeLabel: text(1, 40),
+  monthlyPrice: int(100_000, 100_000_000),
+  bathroom: text(2, 80),
+  extras: z.string().trim().max(300),
+  description: z.string().trim().max(1500),
+  isNew: z.boolean(),
+  isVip: z.boolean(),
+  hasEnsuite: z.boolean(),
+  sortOrder: int(0, 999),
+});
+
+export function parseRoomType(form: FormData) {
+  const on = (k: string) => form.get(k) === "on";
+  return roomTypeSchema.safeParse({
+    ...Object.fromEntries(form.entries()),
+    isNew: on("isNew"),
+    isVip: on("isVip"),
+    hasEnsuite: on("hasEnsuite"),
+  });
 }
 
 export const listItemSchema = z.object({ a: text(1, 200), b: text(1, 1500) });

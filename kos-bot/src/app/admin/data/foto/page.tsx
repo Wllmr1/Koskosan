@@ -8,7 +8,7 @@ export default async function GalleryPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <Notice saved={q.saved} error={q.error} />
-      <p className="muted small">Foto gedung dan fasilitas bersama. Tampil di bagian atas situs. Foto kamar diatur di halaman tiap kamar.</p>
+      <p className="muted small">Foto gedung dan fasilitas bersama. Tampil di bagian atas situs. Foto kamar diatur di halaman tiap <a href="/admin/data/tipe">tipe kamar</a>.</p>
       <PhotoManager photos={photos} roomTypeId={null} back="/admin/data/foto" />
     </>
   );

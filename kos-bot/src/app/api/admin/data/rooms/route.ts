@@ -4,8 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { backTo, ownerPostGuard } from "@/lib/admin-guard";
 import { firstIssue, parseRoom } from "@/lib/admin-forms";
 
-const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tipe";
-
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
@@ -34,18 +32,10 @@ export async function POST(req: NextRequest) {
 
   const parsed = parseRoom(form);
   if (!parsed.success) return fail(firstIssue(parsed.error));
-  const { availableOn, type, sizeLabel, monthlyPrice, bathroom, extras, description, ...rest } = parsed.data;
-  // Until the type editor arrives (Task 3), the room form still carries the type fields:
-  // they create or update the room type with that name.
-  const typeFields = { sizeLabel, monthlyPrice, bathroom, extras, description };
-  const roomType = await prisma.roomType.upsert({
-    where: { slug: slugify(type) },
-    create: { slug: slugify(type), name: type, ...typeFields, hasEnsuite: /dalam/i.test(bathroom) },
-    update: typeFields,
-  });
+  const { availableOn, ...rest } = parsed.data;
+  if (!(await prisma.roomType.findUnique({ where: { id: rest.roomTypeId }, select: { id: true } }))) return fail("Tipe kamar tidak ditemukan");
   const data = {
     ...rest,
-    roomTypeId: roomType.id,
     availableOn: rest.status === RoomStatus.AVAILABLE || !availableOn ? null : new Date(`${availableOn}T00:00:00Z`),
   };
 

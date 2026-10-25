@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseListItem, parseProperty, parseRoom } from "@/lib/admin-forms";
+import { parseListItem, parseProperty, parseRoom, parseRoomType } from "@/lib/admin-forms";
 
 function form(values: Record<string, string>) {
   const f = new FormData();
@@ -53,13 +53,8 @@ describe("admin forms", () => {
 
   const room = {
     code: "d-401",
-    type: "Deluxe",
+    roomTypeId: "type-1",
     floor: "4",
-    sizeLabel: "3 × 4 m",
-    monthlyPrice: "1900000",
-    bathroom: "Dalam",
-    extras: "AC",
-    description: "",
     status: "AVAILABLE",
     availableOn: "",
     sortOrder: "9",
@@ -72,6 +67,34 @@ describe("admin forms", () => {
     const hidden = parseRoom(form({ ...room, hidden: "on" }));
     expect(hidden.success && hidden.data.hidden).toBe(true);
     expect(parseRoom(form({ ...room, code: "D 401!" })).success).toBe(false);
+  });
+
+  it("a room needs a type and ignores a posted price", () => {
+    const { roomTypeId: _drop, ...noType } = room;
+    expect(parseRoom(form(noType)).success).toBe(false);
+    const r = parseRoom(form({ ...room, monthlyPrice: "1900000" }));
+    expect(r.success && "monthlyPrice" in r.data).toBe(false);
+  });
+
+  const roomType = {
+    name: "Deluxe VIP",
+    slug: "deluxe-vip",
+    sizeLabel: "3 × 4 m",
+    monthlyPrice: "2500000",
+    bathroom: "Dalam",
+    extras: "AC, kasur",
+    description: "",
+    sortOrder: "2",
+  };
+
+  it("parses a room type with checkbox tags", () => {
+    const r = parseRoomType(form({ ...roomType, isVip: "on", hasEnsuite: "on" }));
+    expect(r.success && [r.data.isNew, r.data.isVip, r.data.hasEnsuite]).toEqual([false, true, true]);
+  });
+
+  it("rejects a bad slug and a price that is too low", () => {
+    expect(parseRoomType(form({ ...roomType, slug: "VIP A" })).success).toBe(false);
+    expect(parseRoomType(form({ ...roomType, monthlyPrice: "50000" })).success).toBe(false);
   });
 
   it("list items need both fields", () => {

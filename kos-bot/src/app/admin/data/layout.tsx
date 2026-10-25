@@ -6,6 +6,7 @@ export const metadata = { title: "Data kos", robots: { index: false, follow: fal
 
 const LINKS = [
   ["/admin/data", "Properti"],
+  ["/admin/data/tipe", "Tipe kamar"],
   ["/admin/data/kamar", "Kamar"],
   ["/admin/data/foto", "Foto"],
   ["/admin/data/layanan", "Layanan"],

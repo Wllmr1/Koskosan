@@ -10,12 +10,11 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   roomId: z.string().min(1).max(40),
   status: z.nativeEnum(RoomStatus),
-  monthlyPrice: z.coerce.number().int().min(100_000).max(100_000_000),
   availableOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
 });
 
 /**
- * Owner updates a room's availability or price. The website and the assistant
+ * Owner updates a room's availability. The website and the assistant
  * both read this row, so the change is live everywhere at once.
  */
 export async function POST(req: NextRequest) {
@@ -26,12 +25,11 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse({
     roomId: form.get("roomId"),
     status: form.get("status"),
-    monthlyPrice: form.get("monthlyPrice"),
     availableOn: form.get("availableOn") ?? "",
   });
   if (!parsed.success) return NextResponse.redirect(new URL("/admin?room=invalid#kamar", req.url), { status: 303 });
 
-  const { roomId, status, monthlyPrice, availableOn } = parsed.data;
+  const { roomId, status, availableOn } = parsed.data;
   const room = await prisma.room.findUnique({ where: { id: roomId } });
   if (!room) return NextResponse.redirect(new URL("/admin?room=invalid#kamar", req.url), { status: 303 });
 
@@ -41,22 +39,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(new URL("/admin?room=occupied#kamar", req.url), { status: 303 });
   }
 
-  await prisma.$transaction([
-    prisma.room.update({
-      where: { id: roomId },
-      data: {
-        status,
-        availableOn: status === RoomStatus.AVAILABLE || !availableOn ? null : new Date(`${availableOn}T00:00:00Z`),
-      },
-    }),
-    // The price belongs to the room type, so every room of that type changes with it.
-    prisma.roomType.update({ where: { id: room.roomTypeId }, data: { monthlyPrice } }),
-  ]);
+  await prisma.room.update({
+    where: { id: roomId },
+    data: {
+      status,
+      availableOn: status === RoomStatus.AVAILABLE || !availableOn ? null : new Date(`${availableOn}T00:00:00Z`),
+    },
+  });
   await prisma.auditLog.create({
     data: {
       actor: "owner",
       action: "room:update",
-      meta: { room: room.code, from: room.status, to: status, price: monthlyPrice } as never,
+      meta: { room: room.code, from: room.status, to: status } as never,
     },
   });
 
