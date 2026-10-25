@@ -87,6 +87,12 @@ async function seedRoomTypes() {
       });
       roomOrder += 1;
       if (slot.status !== RoomStatus.OCCUPIED || !availableOn) continue;
+      // Only a room still in its demo state gets a demo renter: once the owner
+      // cleared the demo (npm run db:demo:clear) or someone real rents it, a
+      // later seed run leaves it alone.
+      const demoState = room.status === RoomStatus.OCCUPIED && room.availableOn?.getTime() === availableOn.getTime();
+      const realRenter = await prisma.lease.count({ where: { roomId: room.id, status: LeaseStatus.ACTIVE, tenant: { accountCode: { not: { startsWith: "DEMO-" } } } } });
+      if (!demoState || realRenter > 0) continue;
 
       demoTenant += 1;
       const n = String(demoTenant).padStart(2, "0");
