@@ -37,6 +37,8 @@ export const LIMITS = {
   applySubmit: { limit: 20, windowMs: 3_600_000 },
   /** admin login attempts per IP per 15 minutes */
   adminLogin: { limit: 8, windowMs: 15 * 60_000 },
+  /** helper password-link submissions per IP per 15 minutes */
+  adminSetup: { limit: 10, windowMs: 15 * 60_000 },
   /** renter login attempts per phone number per 15 minutes */
   renterLogin: { limit: 5, windowMs: 15 * 60_000 },
   /** renter login attempts per IP per 15 minutes — higher, because a campus shares one IP */

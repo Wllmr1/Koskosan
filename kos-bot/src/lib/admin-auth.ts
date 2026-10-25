@@ -100,14 +100,22 @@ export function clearAdminCookie(res: NextResponse) {
 /** How this admin appears in the audit log. */
 export const actorOf = (who: AdminIdentity) => (who.isOwner ? "owner" : `admin:${who.email}`);
 
+/** Why adding a helper failed, by the short code the Kelola admin page shows it under. */
+export const ADMIN_ERRORS = {
+  email: "Email tidak valid.",
+  name: "Isi nama admin.",
+  owner: "Itu email pemilik, yang sudah bisa masuk.",
+  taken: "Email ini sudah terdaftar sebagai admin.",
+} as const;
+
 /** Owner adds a helper. They get a single-use link to choose their own password. */
 export async function createAdmin(input: { name: string; email: string }) {
   const email = norm(input.email);
   const name = input.name.trim().slice(0, 80);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Email tidak valid.");
-  if (name.length < 2) throw new Error("Isi nama admin.");
-  if (email === norm(env().OWNER_EMAIL)) throw new Error("Itu email pemilik, yang sudah bisa masuk.");
-  if (await prisma.admin.findUnique({ where: { email } })) throw new Error("Email ini sudah terdaftar sebagai admin.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(ADMIN_ERRORS.email);
+  if (name.length < 2) throw new Error(ADMIN_ERRORS.name);
+  if (email === norm(env().OWNER_EMAIL)) throw new Error(ADMIN_ERRORS.owner);
+  if (await prisma.admin.findUnique({ where: { email } })) throw new Error(ADMIN_ERRORS.taken);
 
   const admin = await prisma.admin.create({ data: { email, name } });
   return { admin, link: await adminSetupLink(admin.id) };

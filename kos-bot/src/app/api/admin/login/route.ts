@@ -1,41 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/env";
-import { safeEqual, signSession } from "@/lib/crypto";
-import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { actorOf, loginAdmin, setAdminCookie } from "@/lib/admin-auth";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
-import { clientIp } from "@/lib/http";
+import { clientIp, sameOrigin } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  if (!sameOrigin(req)) return new NextResponse("forbidden", { status: 403 });
+  const back = (query: string) => NextResponse.redirect(new URL(`/admin/login?${query}`, req.url), { status: 303 });
+
+  // Counted before the password check, so parallel guesses cannot slip past the limit.
   const ip = clientIp(req);
-  if (await overLimit("admin-login", ip, LIMITS.adminLogin.limit, LIMITS.adminLogin.windowMs)) {
-    return NextResponse.json({ error: "Terlalu banyak percobaan. Coba lagi nanti." }, { status: 429 });
-  }
+  if (await overLimit("admin-login", ip, LIMITS.adminLogin.limit, LIMITS.adminLogin.windowMs)) return back("error=limit");
 
   const form = await req.formData();
-  const password = String(form.get("password") ?? "");
-
-  if (!safeEqual(password, env().ADMIN_PASSWORD)) {
+  const result = await loginAdmin(String(form.get("email") ?? ""), String(form.get("password") ?? ""));
+  if (!result) {
+    // Never the email or password: a typo'd password is often the real one for something else.
     log.warn("admin login failed", { ip });
-    return NextResponse.redirect(new URL("/admin/login?error=1", req.url), { status: 303 });
+    return back("error=1");
   }
 
+  await prisma.auditLog.create({ data: { actor: actorOf(result.identity), action: "admin:login" } });
   const res = NextResponse.redirect(new URL("/admin", req.url), { status: 303 });
-  res.cookies.set(SESSION_COOKIE, signSession("owner", SESSION_TTL_MS), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_TTL_MS / 1000,
-  });
-  return res;
-}
-
-export async function DELETE() {
-  const res = NextResponse.json({ ok: true });
-  res.cookies.delete(SESSION_COOKIE);
+  setAdminCookie(res, result.cookie);
   return res;
 }
