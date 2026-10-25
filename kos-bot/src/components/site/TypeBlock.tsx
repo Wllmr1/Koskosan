@@ -1,5 +1,5 @@
 import { niceDate, rp } from "@/lib/money";
-import { availabilityLabel, tagsOf, type TypeCard } from "@/lib/room-types";
+import { availabilityLabel, notBeforeToday, tagsOf, type TypeCard } from "@/lib/room-types";
 import Gallery from "./Gallery";
 
 function colorFor(t: TypeCard) {
@@ -47,7 +47,7 @@ export default function TypeBlock({ type, href }: { type: TypeCard; href: string
           <div className="buy">
             <div className="p"><b>{rp(type.monthlyPrice)}</b> <small>/ bulan</small></div>
             <a className={free ? "btn pri" : "btn"} href={href}>
-              {free ? "Lihat & sewa" : next ? `Pesan mulai ${niceDate(next)}` : "Lihat tipe ini"}
+              {free ? "Lihat & sewa" : next ? `Pesan mulai ${niceDate(notBeforeToday(next))}` : "Lihat tipe ini"}
             </a>
           </div>
         </div>

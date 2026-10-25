@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { niceDate, rp } from "@/lib/money";
 import { onboardingAmount } from "@/lib/application";
-import { isoDateOrNull, planOrNull, resolveKamarPath } from "@/lib/room-types";
+import { isoDateOrNull, notBeforeToday, planOrNull, queryString, resolveKamarPath } from "@/lib/room-types";
 import OpenChatButton from "@/components/OpenChatButton";
 import { TypeFacts, TypeGallery } from "@/components/site/TypeBlock";
 
@@ -29,17 +29,18 @@ export default async function RoomTypePage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const found = await resolveKamarPath((await params).slug);
+  const sp = await searchParams;
+  const found = await resolveKamarPath((await params).slug, queryString(sp));
   if (!found) notFound();
   if (found.kind === "redirect") redirect(found.to);
   const type = found.type;
-  const sp = await searchParams;
   const sewa = one(sp.sewa);
   const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
 
-  const { free, nextFree } = type.availability;
+  const { free } = type.availability;
+  const nextFree = type.availability.nextFree && notBeforeToday(type.availability.nextFree);
   const today = day(new Date());
-  const earliest = free > 0 ? today : nextFree ? (day(nextFree) > today ? day(nextFree) : today) : null;
+  const earliest = free > 0 ? today : nextFree ? day(nextFree) : null;
   const asked = isoDateOrNull(one(sp.masuk));
   const moveIn = earliest && asked && asked >= earliest ? asked : earliest;
   const chosenPlan = planOrNull(one(sp.lama)) ?? "bulanan";
