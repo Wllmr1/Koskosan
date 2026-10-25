@@ -62,9 +62,9 @@ td small{display:block;color:var(--ink-3)}
 .chat-actions .btn{padding:7px 12px;font-size:13.5px}
 .chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .chat-input textarea{resize:none;min-height:42px;max-height:120px}
-@media (max-width:640px){
-  .chat-panel{inset:0;width:100%;height:100%;border-radius:0;
+@media (max-width:640px){.chat-panel{inset:0;width:100%;height:100%;border-radius:0;
     padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
 }
 
 /* ── owner data pages ─────────────────────────────────────────── */
@@ -83,135 +83,42 @@ td small{display:block;color:var(--ink-3)}
 .admin-row-tools .btn,.admin-row-form .btn{padding:8px 12px}
 
 /* ── public site: header, menu, photos ─────────────────────────── */
-.site-header{border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:env(safe-area-inset-top,0px);z-index:40}
-.site-header .wrap{display:flex;align-items:center;gap:18px;padding-top:12px;padding-bottom:12px}
-.site-brand{font-family:var(--display);font-weight:700;font-size:18px;color:var(--ink);text-decoration:none;white-space:nowrap}
-.site-nav{display:flex;gap:4px;flex-wrap:wrap}
-.site-link{padding:6px 11px;border-radius:999px;color:var(--ink-2);text-decoration:none;font-size:15px}
-.site-link:hover{background:var(--wash);color:var(--ink)}
-.site-link.is-active{background:var(--brand-soft);color:var(--brand);font-weight:600}
-.site-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
-.site-menu{display:none;position:relative}
-.site-menu summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:var(--radius);padding:8px 13px;font-size:15px}
-.site-menu summary::-webkit-details-marker{display:none}
-.site-menu nav{position:absolute;right:0;top:calc(100% + 6px);background:var(--paper);border:1px solid var(--line);
-  border-radius:14px;padding:8px;display:flex;flex-direction:column;min-width:190px;box-shadow:0 12px 30px rgba(22,25,42,.15)}
-@media (max-width:860px){
-  .site-nav{display:none}
-  .site-menu{display:block}
-  .site-actions .btn:not(.btn-pri){display:none}
-}
-.site-footer{border-top:1px solid var(--line);margin-top:40px;padding:26px 0 90px}
-.site-footer nav{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:10px}
-.site-footer a{color:var(--ink-2)}
 .photo-grid{display:grid;gap:10px}
 .photo-tile{width:100%;object-fit:cover;border-radius:14px;display:block;height:auto}
 .photo-slot{width:100%;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   background:repeating-linear-gradient(135deg,var(--wash) 0 12px,var(--paper) 12px 24px);border:1px dashed var(--line);
   color:var(--ink-3);font-size:13px}
-.room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:14px}
-.room-card{border:1px solid var(--line);border-radius:14px;padding:12px 13px 15px;color:inherit;text-decoration:none;display:block;background:var(--paper)}
-.room-card:hover{border-color:var(--ink-3)}
-.link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:14px}
-.link-card{display:block;padding:18px 18px 16px;border:1px solid var(--line);border-radius:16px;background:var(--paper);color:inherit;text-decoration:none}
-.link-card:hover{border-color:var(--brand)}
-.link-card strong{font-family:var(--display);font-size:17px;display:block;margin-bottom:4px}
-.link-card span.more{display:block;margin-top:10px;color:var(--brand);font-size:14px;font-weight:600}
 .dot-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .dot-list li{font-size:14.5px;padding-left:16px;position:relative}
 .dot-list li::before{content:"";position:absolute;left:0;top:.6em;width:6px;height:6px;border-radius:50%;background:var(--brand)}
+
 /* narrow phones: the floating chat bubble replaces the header button; the name may shorten */
-.site-brand{min-width:0;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:480px){
-  .site-header .wrap{gap:10px}
-  .site-actions{display:none}
-  .site-menu{margin-left:auto}
-  .site-menu nav{right:0}
-}
 
 /* ── orchid-house look: serif display, brass details, open space ── */
-.site-header{background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px)}
-.site-brand{font-size:21px;font-weight:500;letter-spacing:.01em}
-.site-link{font-size:14.5px;letter-spacing:.01em}
-.site-link.is-active{background:transparent;color:var(--brand);box-shadow:inset 0 -1.5px 0 var(--brass);border-radius:0;font-weight:500}
 .btn{border-radius:var(--radius);padding:11px 18px;font-weight:500}
-
-.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,5vw,64px);align-items:end;
-  padding:clamp(12px,3vw,36px) 0 clamp(28px,5vw,56px)}
-.hero-title{font-size:clamp(40px,6.2vw,76px);line-height:1.02;letter-spacing:-.02em;font-weight:500;max-width:13ch}
-.hero-sub{color:var(--ink-2);font-size:17.5px;max-width:46ch;margin:22px 0 28px}
-.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
-.hero-facts{display:flex;flex-wrap:wrap;gap:12px 40px;margin:36px 0 0;padding-top:20px;border-top:1px solid var(--brass)}
-.hero-facts div{min-width:120px}
-.hero-facts dt{font-size:13px;color:var(--ink-3)}
-.hero-facts dd{margin:2px 0 0;font-family:var(--display);font-size:26px;font-weight:500}
-.hero-arch .photo-tile,.hero-arch .photo-slot{border-radius:999px 999px 18px 18px;max-height:560px}
-.hero-arch .photo-slot{border-color:var(--brass)}
-@media (max-width:760px){
-  .hero{grid-template-columns:1fr}
-  .hero-arch{order:-1;max-width:320px;margin:0 auto;width:100%}
-  .hero-arch .photo-tile,.hero-arch .photo-slot{max-height:380px}
-}
-.home-gallery{margin:0 0 clamp(36px,6vw,64px)}
 .photo-tile,.photo-slot{border-radius:6px}
-
-.page-index{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));column-gap:48px}
-.page-index-row{display:grid;grid-template-columns:120px 1fr;gap:16px;padding:20px 0;border-top:1px solid var(--line);
-  color:inherit;text-decoration:none;align-items:baseline}
-.page-index-row:hover .page-index-title{color:var(--brand)}
-.page-index-title{font-family:var(--display);font-size:24px;font-weight:500}
-.page-index-text{color:var(--ink-2);font-size:15px}
-@media (max-width:480px){ .page-index-row{grid-template-columns:1fr;gap:4px} }
-
 .page-head{margin:8px 0 30px;max-width:66ch}
 .page-head h1{font-size:clamp(34px,5vw,56px);letter-spacing:-.02em}
 .page-head p{font-size:17px}
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:clamp(20px,3vw,32px);margin-bottom:22px}
 .panel-title{font-size:26px;font-weight:500}
-
-.room-grid{gap:34px 22px;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
-.room-card{border:0;padding:0;background:transparent}
-.room-card:hover .room-card-name{color:var(--brand)}
-.room-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:14px}
-.room-card-name{font-family:var(--display);font-size:22px;font-weight:500}
-.room-card-type{font-size:13px;color:var(--ink-3)}
-.room-price{font-family:var(--display);font-size:20px;margin:4px 0 8px;display:inline-block;
-  padding-bottom:3px;border-bottom:1px solid var(--brass)}
-.room-price span{font-family:var(--sans);font-size:13px;color:var(--ink-3)}
-.room-price-lg{font-size:32px;margin:0}
-
 .dot-list li::before{background:var(--brass);width:5px;height:5px}
 .photo-slot{color:var(--ink-3);background:repeating-linear-gradient(135deg,var(--wash) 0 14px,var(--paper) 14px 28px)}
-.site-footer{background:var(--paper)}
-.footer-name{display:block;font-family:var(--display);font-size:19px;font-weight:500;color:var(--ink);margin:8px 0 2px}
-.link-card strong{font-weight:500}
-.room-price-lg{justify-self:start}
 
 /* ── rent online ─────────────────────────────────────────────── */
-.room-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:22px;align-items:start}
-@media (max-width:860px){ .room-layout{grid-template-columns:1fr} }
-.rent-box{position:sticky;top:96px}
-@media (max-width:860px){ .rent-box{position:static} }
-.plan-options{border:0;padding:0;margin:16px 0;display:grid;gap:10px}
-.plan-options legend{font-size:13px;color:var(--ink-3);margin-bottom:8px;padding:0}
-.plan-option{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--radius);
-  padding:13px 14px;cursor:pointer;font-weight:400}
-.plan-option input{width:auto;margin-top:5px;accent-color:var(--brand)}
-.plan-option > span{display:flex;flex-direction:column;gap:2px}
-.plan-option strong{font-family:var(--display);font-size:19px;font-weight:500}
-.plan-option:has(input:checked){border-color:var(--brass);background:var(--gold-soft)}
 .rent-notice{background:var(--bad-soft);color:var(--bad);border-radius:var(--radius);padding:9px 12px;font-size:14px;margin:12px 0 0}
-.room-card-cta{display:inline-block;margin-left:auto;font-size:13.5px;font-weight:600;color:var(--brand)}
 
 /* ── renter account ─────────────────────────────────────────── */
 .account-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,340px);gap:22px;align-items:start}
 .account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:0 22px;align-items:start}
-@media (max-width:860px){ .account-top{grid-template-columns:1fr} }
+@media (max-width:860px){.account-top{grid-template-columns:1fr}
+ }
 .facts{display:grid;gap:10px;margin:14px 0 0}
 .facts div{display:grid;grid-template-columns:130px 1fr;gap:12px}
 .facts dt{color:var(--ink-3);font-size:14px}
 .facts dd{margin:0}
-@media (max-width:480px){ .facts div{grid-template-columns:1fr;gap:0} }
+@media (max-width:480px){.facts div{grid-template-columns:1fr;gap:0}
+ }
 .owed-total{font-family:var(--display);font-size:40px;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--brass);display:inline-block}
 .bill-list{display:grid}
 .bill-row{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
@@ -219,7 +126,9 @@ td small{display:block;color:var(--ink-3)}
 .bill-row strong{display:block;font-weight:600}
 .bill-amount{font-family:var(--display);font-size:20px}
 .overdue{color:var(--bad);font-weight:600}
-@media (max-width:560px){ .bill-row{grid-template-columns:1fr auto} .bill-row .btn{grid-column:1/-1} }
+@media (max-width:560px){.bill-row{grid-template-columns:1fr auto}
+.bill-row .btn{grid-column:1/-1}
+ }
 .meter{height:12px;border-radius:999px;background:var(--wash);border:1px solid var(--line);overflow:hidden}
 .meter-fill{height:100%;background:var(--brass)}
 .meter-fill[data-over="true"]{background:var(--bad)}
@@ -228,3 +137,4 @@ td small{display:block;color:var(--ink-3)}
 .plain-list li:first-child{border-top:0;padding-top:0}
 .plain-list li > span:first-child{display:flex;flex-direction:column}
 .bill-row .btn{text-align:center}
+

@@ -232,3 +232,4 @@
 .rk .type .ph{height:420px}
 @media (max-width:760px){.rk .tri .ph{height:380px}}
 .rk .chat-link{background:none;border:0;padding:0;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
+.rk a.type,.rk a.type:hover{text-decoration:none;color:inherit}

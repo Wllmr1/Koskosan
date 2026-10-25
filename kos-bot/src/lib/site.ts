@@ -60,3 +60,25 @@ export function heroPhotos<P>(gallery: P[], typeCovers: { slug: string; cover: P
     .slice(0, 3)
     .map(({ t }) => t.cover);
 }
+
+const EYEBROW = "Hunian butik dekat kampus";
+
+/** Line above the headline: the house eyebrow, unless the tagline already says it (then the address). */
+export function heroEyebrow(tagline: string, address: string): string {
+  return tagline.trim().toLowerCase() === EYEBROW.toLowerCase() ? address : EYEBROW;
+}
+
+/** One-line lead built only from counts and prices the database holds; parts with nothing to say are left out. */
+export function heroLead(f: { facilities: number; types: number; cheapest: number; free: number }, money: (n: number) => string): string {
+  const parts = [
+    f.facilities ? `${f.facilities} fasilitas di dalam kos` : "",
+    f.types ? `${f.types} tipe kamar mulai ${money(f.cheapest)} per bulan` : "",
+    f.free ? `${f.free} kamar tersedia sekarang` : "",
+  ].filter(Boolean);
+  return parts.length ? `${parts.join(". ")}.` : "";
+}
+
+/** The room types shown big on Beranda, in this order; a type that is not listed is skipped. */
+export function pickShowcase<T extends { slug: string }>(types: T[], slugs: readonly string[] = ["standard-new", "vip-a"]): T[] {
+  return slugs.map((s) => types.find((t) => t.slug === s)).filter((t): t is T => !!t);
+}

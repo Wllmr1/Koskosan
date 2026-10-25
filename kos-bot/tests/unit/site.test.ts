@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { brandLine, fillSlots, heroPhotos, isActive, roman, SITE_NAV } from "@/lib/site";
+import { brandLine, fillSlots, heroEyebrow, heroLead, heroPhotos, isActive, pickShowcase, roman, SITE_NAV } from "@/lib/site";
+import { availabilityLabel } from "@/lib/room-types";
+import { niceDate } from "@/lib/money";
 
 describe("site navigation", () => {
   it("lists the seven pages in menu order", () => {
@@ -100,5 +102,35 @@ describe("heroPhotos", () => {
 
   it("is empty when nothing has a photo", () => {
     expect(heroPhotos([], [{ slug: "vip-a", cover: null }])).toEqual([]);
+  });
+});
+
+describe("Beranda copy", () => {
+  const money = (n: number) => `Rp${n}`;
+
+  it("uses the house eyebrow, or the address when the tagline already says it", () => {
+    expect(heroEyebrow("Tinggal seperti di hotel", "Jl. A")).toBe("Hunian butik dekat kampus");
+    expect(heroEyebrow(" hunian butik dekat kampus ", "Jl. A")).toBe("Jl. A");
+  });
+
+  it("builds the lead from counts and leaves out what is empty", () => {
+    expect(heroLead({ facilities: 6, types: 7, cheapest: 1200000, free: 3 }, money)).toBe(
+      "6 fasilitas di dalam kos. 7 tipe kamar mulai Rp1200000 per bulan. 3 kamar tersedia sekarang.",
+    );
+    expect(heroLead({ facilities: 0, types: 2, cheapest: 5, free: 0 }, money)).toBe("2 tipe kamar mulai Rp5 per bulan.");
+    expect(heroLead({ facilities: 0, types: 0, cheapest: 0, free: 0 }, money)).toBe("");
+  });
+
+  it("shows Standard New then VIP A, skipping a missing one", () => {
+    const t = (slug: string) => ({ slug });
+    expect(pickShowcase([t("vip-a"), t("deluxe"), t("standard-new")]).map((x) => x.slug)).toEqual(["standard-new", "vip-a"]);
+    expect(pickShowcase([t("deluxe"), t("vip-a")]).map((x) => x.slug)).toEqual(["vip-a"]);
+    expect(pickShowcase([t("deluxe")])).toEqual([]);
+  });
+
+  it("labels a full showcase type with the date it opens", () => {
+    const label = availabilityLabel({ free: 0, nextFree: new Date("2027-01-15T00:00:00Z") });
+    expect(label).toBe(`Penuh · kosong mulai ${niceDate(new Date("2027-01-15T00:00:00Z"))}`);
+    expect(availabilityLabel({ free: 2, nextFree: null })).toBe("2 kamar tersedia");
   });
 });

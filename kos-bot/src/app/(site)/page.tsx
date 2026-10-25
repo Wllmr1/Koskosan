@@ -1,15 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { rp, wibNow } from "@/lib/money";
-import { listRoomTypes } from "@/lib/room-types";
-import { heroPhotos } from "@/lib/site";
+import { availabilityLabel, listRoomTypes, tagsOf } from "@/lib/room-types";
+import { heroEyebrow, heroLead, heroPhotos, pickShowcase } from "@/lib/site";
 import { photoUrl } from "@/lib/photos";
 import OpenChatButton from "@/components/OpenChatButton";
 import { NoData } from "@/components/site/ui";
 
 export const dynamic = "force-dynamic";
-
-const EYEBROW = "Hunian butik dekat kampus";
-const SHOWCASE = ["standard-new", "vip-a"];
 
 /**
  * Beranda: hero, booking bar, two showcased room types and a line into each other page.
@@ -29,14 +26,9 @@ export default async function HomePage() {
   const free = types.reduce((sum, t) => sum + t.availability.free, 0);
   const cheapest = types.length ? Math.min(...types.map((t) => t.monthlyPrice)) : 0;
   const hero = heroPhotos(gallery, types.map((t) => ({ slug: t.slug, cover: t.photos[0] ?? null })));
-  const eyebrow = settings.tagline.trim().toLowerCase() === EYEBROW.toLowerCase() ? settings.address : EYEBROW;
-  const showcase = SHOWCASE.map((slug) => types.find((t) => t.slug === slug)).filter((t) => !!t);
-
-  const lead = [
-    settings.facilities.length ? `${settings.facilities.length} fasilitas di dalam kos` : "",
-    types.length ? `${types.length} tipe kamar mulai ${rp(cheapest)} per bulan` : "",
-    free ? `${free} kamar tersedia sekarang` : "",
-  ].filter(Boolean);
+  const eyebrow = heroEyebrow(settings.tagline, settings.address);
+  const showcase = pickShowcase(types);
+  const lead = heroLead({ facilities: settings.facilities.length, types: types.length, cheapest, free }, rp);
 
   const doors = [
     { href: "/fasilitas", title: "Fasilitas", text: `${settings.facilities.length} fasilitas di dalam kos, ${services} layanan berbayar` },
@@ -51,7 +43,7 @@ export default async function HomePage() {
       <section className="hero">
         <div className="lbl">{eyebrow}</div>
         <h1 style={{ marginTop: 22 }}>{settings.tagline}</h1>
-        {lead.length > 0 && <p className="lead">{lead.join(". ")}.</p>}
+        {lead && <p className="lead">{lead}</p>}
         <div className="cta">
           <OpenChatButton text="Halo, kamar apa saja yang masih kosong?">Tanya asisten</OpenChatButton>
           <a className="btn" href="/kamar">Lihat tipe kamar</a>
@@ -114,15 +106,13 @@ export default async function HomePage() {
                     ) : (
                       <div className="ph" role="img" aria-label={`Kamar ${t.name}, foto segera hadir`}>Foto segera hadir</div>
                     )}
-                    <span className="tag" style={{ display: "inline-block", marginTop: 16 }}>
-                      {[t.isNew ? "Kos baru" : "Kos lama", t.isVip ? "VIP" : ""].filter(Boolean).join(" · ")}
-                    </span>
+                    <span className="tag" style={{ display: "inline-block", marginTop: 16 }}>{tagsOf(t).join(" · ")}</span>
                     <h3 style={{ marginTop: 10 }}>{t.name}</h3>
                     <p>
                       {t.description.split("\n")[0]}
                       {t.description && " · "}
                       <b style={{ color: t.availability.free > 0 ? "var(--ok)" : "var(--warn)", fontWeight: 500 }}>
-                        {t.availability.free > 0 ? `${t.availability.free} kamar tersedia` : "Penuh"}
+                        {availabilityLabel(t.availability)}
                       </b>
                     </p>
                   </a>
