@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:photos": "tsx prisma/import-photos.ts",
     "db:studio": "prisma studio",
     "cron:purge": "tsx src/scripts/run-purge.ts",
     "cron:reminders": "tsx src/scripts/run-reminders.ts",
