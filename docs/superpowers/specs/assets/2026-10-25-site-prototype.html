@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Website prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFFFFF; --bg-2:#F6F2EE; --ink:#111111; --ink-2:#5A5753; --ink-3:#6A6763;
+  --line:#E4E0DA; --line-2:#D9D3CB; --photo:#DCD5CB;
+  --band:#111111; --band-fg:#FFFFFF; --band-2:#A7A39D; --band-line:#2E2E2E;
+  --btn:#111111; --btn-fg:#FFFFFF; --ok:#1E6B45; --warn:#7A4E08;
+  --chat-bg:#FAF8F6; --shadow:rgba(17,17,17,.12);
+  --display:"Bodoni Moda", Didot, Georgia, serif; --sans:"Jost", Futura, system-ui, sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7}
+button{font:inherit;color:inherit;cursor:pointer}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.05;margin:0;text-wrap:balance}
+a{color:var(--ink);cursor:pointer}
+img{max-width:100%}
+.proto{background:#2B6CB0;color:#fff;font-size:13px;padding:7px 16px;text-align:center}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px}
+@media (min-width:900px){.wrap{padding:0 32px}}
+.lbl{font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.btn{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 22px;border:1px solid var(--ink);background:transparent;color:var(--ink);text-decoration:none;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:500}
+.btn.pri{background:var(--btn);color:var(--btn-fg);border-color:var(--btn)}
+.btn:hover{opacity:.86}
+.tbtn{min-height:44px;border:0;background:none;padding:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);text-decoration:none;display:inline-flex;align-items:center}
+.tbtn:hover{color:var(--ink)}
+header.site-head{border-bottom:1px solid var(--line);background:var(--bg)}
+.head-row{padding-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+.head-side{flex:1 1 180px;display:flex;gap:4px 22px;flex-wrap:wrap;align-items:center}
+.head-side.end{justify-content:flex-end}
+.mark{flex:none;text-align:center;text-decoration:none;color:var(--ink);line-height:1.1}
+.mark b{display:block;font-family:var(--display);font-weight:400;font-size:34px;letter-spacing:.14em;text-transform:uppercase}
+.mark span{display:block;font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+nav.main-nav{padding-top:14px;display:flex;flex-wrap:wrap;justify-content:center;gap:0 40px;font-size:12px;letter-spacing:.22em;text-transform:uppercase}
+nav.main-nav a{text-decoration:none;padding:12px 0 13px;border-bottom:1px solid transparent}
+nav.main-nav a:hover,nav.main-nav a.on{border-bottom-color:var(--ink)}
+@media (max-width:640px){.head-row{justify-content:center}.head-side{flex:1 1 100%;justify-content:center}.head-side.end{order:3}.mark b{font-size:28px}nav.main-nav{gap:0 20px}}
+.view{display:none}.view.on{display:block}
+.page{padding:64px 0 96px}
+.sec-head{margin-bottom:36px}
+.sec-head h1,.sec-head h2{font-size:clamp(34px,4.4vw,56px);margin-top:14px}
+.sec-head p{margin:14px 0 0;max-width:58ch;color:var(--ink-2)}
+/* hero */
+.hero{padding-top:64px;text-align:center}
+.hero h1{margin:0 auto;max-width:15ch;font-size:clamp(42px,6.2vw,88px);line-height:1.02;letter-spacing:-.01em}
+.hero .lead{margin:22px auto 0;max-width:58ch;color:var(--ink-2)}
+.hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:28px}
+.tri{margin-top:52px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr) minmax(0,1fr);gap:8px}
+.tri img{display:block;width:100%;height:520px;object-fit:cover;background:var(--photo)}
+@media (max-width:760px){.tri{grid-template-columns:1fr}.tri img{height:380px}.tri img+img{display:none}}
+.book{position:relative;margin:-64px auto 0;max-width:1080px;background:var(--bg);box-shadow:0 24px 60px var(--shadow);padding:26px 28px;display:flex;flex-wrap:wrap;gap:20px 28px;align-items:flex-end;text-align:left}
+@media (max-width:760px){.book{margin-top:-40px;padding:22px 18px}}
+.book .f{flex:1 1 190px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.book select,.book input{min-height:46px;border:0;border-bottom:1px solid var(--ink);background:transparent;font:inherit;font-size:17px;color:var(--ink);padding:0 2px;width:100%}
+.book .btn{flex:1 1 220px;min-height:56px}
+/* home teasers */
+.types{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:28px}
+.type{cursor:pointer}
+.type img{display:block;width:100%;height:300px;object-fit:cover;background:var(--photo)}
+.type h3{font-size:30px;margin-top:16px}
+.type p{margin:6px 0 0;color:var(--ink-2);font-size:15px}
+.type:hover h3{text-decoration:underline;text-underline-offset:6px;text-decoration-thickness:1px}
+.doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));border-top:1px solid var(--ink);margin-top:72px}
+.door{padding:22px 20px 22px 0;border-bottom:1px solid var(--line);cursor:pointer;text-decoration:none}
+.door b{display:block;font-family:var(--display);font-weight:400;font-size:24px}
+.door span{display:block;margin-top:6px;color:var(--ink-2);font-size:14.5px}
+.door:hover b{text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:1px}
+/* rooms */
+.filters{display:flex;gap:28px;flex-wrap:wrap;margin:0 0 40px}
+.filters button{min-height:44px;padding:0;border:0;border-bottom:1px solid transparent;background:transparent;color:var(--ink-3);font-size:12px;letter-spacing:.22em;text-transform:uppercase}
+.filters button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.rooms{display:flex;flex-direction:column;gap:64px}
+.room{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:36px;align-items:start}
+@media (max-width:820px){.room{grid-template-columns:1fr;gap:22px}}
+.cover{position:relative;background:var(--photo)}
+.cover img{display:block;width:100%;height:440px;object-fit:cover}
+.status{position:absolute;top:16px;left:16px;background:var(--bg);color:var(--ink);font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:6px 12px}
+.thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.thumbs img{display:block;width:100%;height:90px;object-fit:cover;opacity:.62;cursor:pointer}
+.thumbs img.on,.thumbs img:hover{opacity:1}
+.info{display:flex;flex-direction:column;gap:14px;min-width:0;padding-top:4px}
+.info h3{font-size:40px}
+.info p{margin:0;color:var(--ink-2)}
+.tag{align-self:flex-start;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;border:1px solid var(--ink);padding:2px 9px}
+.specs{margin:4px 0 0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.specs div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.specs dt{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);padding-top:3px}
+.specs dd{margin:0}
+.buy{margin-top:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.buy .p b{font-family:var(--display);font-weight:400;font-size:28px}
+.buy .p small{color:var(--ink-3);font-size:14px}
+.buy .btn{margin-left:auto}
+.rent{background:var(--bg-2);padding:28px;display:flex;flex-direction:column;gap:16px;margin-top:8px}
+.rent h3{font-size:28px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts button{flex:1 1 72px;min-height:46px;border:1px solid var(--line-2);background:var(--bg);font-size:14px;padding:0 8px}
+.opts button.on{background:var(--btn);color:var(--btn-fg);border-color:var(--btn)}
+.sum{display:flex;flex-direction:column;gap:8px;font-size:15.5px;font-variant-numeric:tabular-nums}
+.sum div{display:flex;gap:12px}
+.sum div span:first-child{color:var(--ink-2)}
+.sum div span:last-child{margin-left:auto;text-align:right}
+.sum .tot{align-items:baseline;padding-top:14px;margin-top:4px;border-top:1px solid var(--ink)}
+.sum .tot span:last-child{font-family:var(--display);font-size:34px;line-height:1;color:var(--ink)}
+.back{display:inline-block;margin-bottom:28px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);text-decoration:none}
+/* lists */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:48px}
+.cols h3{font-size:26px;margin-bottom:16px}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--line);font-size:15.5px;color:var(--ink-2)}
+.list li:last-child{border-bottom:1px solid var(--line)}
+.list li i{flex:none;width:22px;font-style:italic;font-family:var(--display);color:var(--ink-3)}
+.list li b{color:var(--ink);font-weight:500}
+.list li .r{margin-left:auto;color:var(--ink);white-space:nowrap;padding-left:12px}
+table.fee{width:100%;border-collapse:collapse;font-size:15.5px;font-variant-numeric:tabular-nums}
+table.fee th{text-align:left;padding:10px 0;border-bottom:1px solid var(--ink);font-weight:500}
+table.fee td{padding:15px 12px 15px 0;border-bottom:1px solid var(--line-2);vertical-align:top}
+table.fee td:first-child{white-space:nowrap}
+table.fee td:last-child{color:var(--ink-2)}
+.calc{margin-top:56px;background:var(--bg-2);padding:36px clamp(18px,3vw,40px);display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px 48px}
+.calc h3{font-size:32px}
+.calc select{min-height:46px;border:0;border-bottom:1px solid var(--ink);background:transparent;font:inherit;font-size:17px;width:100%;margin-top:6px}
+.steps-ol{margin:56px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:32px 28px}
+.steps-ol li{border-top:1px solid var(--ink);padding-top:20px}
+.steps-ol .n{font-family:var(--display);font-style:italic;font-size:22px;color:var(--ink-3)}
+.steps-ol .t{font-family:var(--display);font-size:22px;line-height:1.2;margin:6px 0}
+.steps-ol .d{color:var(--ink-2);font-size:15px}
+.near-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));border-top:1px solid var(--line)}
+.near{padding:16px 16px 16px 0;border-bottom:1px solid var(--line)}
+.near b{display:block;font-weight:500}
+.near span{font-size:14px;color:var(--ink-3)}
+.map{height:340px;background:var(--bg-2) repeating-linear-gradient(45deg,transparent 0 22px,rgba(17,17,17,.035) 22px 23px);display:grid;place-items:center;color:var(--ink-3);margin-bottom:40px;font-size:13px;letter-spacing:.2em;text-transform:uppercase}
+.faq details{border-bottom:1px solid var(--line);padding:18px 0}
+.faq details:first-child{border-top:1px solid var(--ink)}
+.faq summary{cursor:pointer;font-family:var(--display);font-size:22px;line-height:1.3;list-style:none;display:flex;gap:16px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";margin-left:auto;font-family:var(--sans);color:var(--ink-3)}
+.faq details[open] summary::after{content:"–"}
+.faq p{margin:10px 0 0;color:var(--ink-2);max-width:62ch}
+.login{max-width:420px;margin:0 auto;text-align:center}
+.login input{display:block;width:100%;min-height:46px;border:0;border-bottom:1px solid var(--ink);font:inherit;font-size:17px;margin:8px 0 24px;background:transparent}
+.login label{display:block;text-align:left}
+/* footer */
+footer{background:var(--band);color:var(--band-fg)}
+.foot-top{padding:72px 0 40px;display:flex;flex-wrap:wrap;gap:40px 64px}
+.foot-top .brand{flex:2 1 300px}
+.foot-top .brand b{display:block;font-family:var(--display);font-weight:400;font-size:28px;letter-spacing:.14em;text-transform:uppercase}
+.foot-top .brand p{margin:12px 0 0;color:var(--band-2);max-width:36ch}
+.foot-col{flex:1 1 170px;display:flex;flex-direction:column;gap:8px}
+.foot-col .lbl{color:var(--band-2);margin-bottom:6px}
+.foot-col a,.foot-col span{color:var(--band-fg);text-decoration:none}
+.foot-bot{padding:20px 0 32px;border-top:1px solid var(--band-line);display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--band-2)}
+/* chat */
+.fab{position:fixed;right:20px;bottom:20px;z-index:50;min-height:52px;padding:0 22px;background:var(--btn);color:var(--btn-fg);border:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;box-shadow:0 14px 34px var(--shadow)}
+.chat{position:fixed;right:20px;bottom:20px;z-index:60;width:380px;height:540px;max-height:calc(100vh - 40px);background:var(--chat-bg);border:1px solid var(--line);box-shadow:0 24px 60px rgba(17,17,17,.2);display:none;flex-direction:column}
+.chat.on{display:flex}
+.chat.big{width:min(760px,calc(100vw - 40px));height:calc(100vh - 40px)}
+@media (max-width:560px){.chat,.chat.big{right:0;bottom:0;width:100vw;height:100vh;max-height:none}}
+.chat .ch{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.chat .av{width:34px;height:34px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--display);font-size:14px}
+.chat .ch b{display:block;font-weight:500;line-height:1.2}
+.chat .ch small{color:var(--ink-3);font-size:12.5px}
+.chat .ctl{margin-left:auto;display:flex;gap:4px}
+.chat .ctl button{width:34px;height:34px;border:1px solid var(--line);background:var(--bg);font-size:15px;line-height:1;display:grid;place-items:center}
+.chat .ctl button:hover{border-color:var(--ink)}
+.chat .msgs{flex:1;overflow:auto;padding:18px 16px;display:flex;flex-direction:column;gap:10px}
+.chat .b{background:var(--bg);border:1px solid var(--line);padding:10px 13px;max-width:85%;font-size:15px;line-height:1.55}
+.chat .b.me{align-self:flex-end;background:var(--ink);color:#fff;border-color:var(--ink)}
+.chat .inp{display:flex;gap:8px;border-top:1px solid var(--line);padding:12px;background:var(--bg)}
+.chat .inp input{flex:1;border:0;border-bottom:1px solid var(--line-2);font:inherit;font-size:15px;background:transparent;min-height:42px}
+.chat .inp .btn{min-height:42px;padding:0 16px}
+
+.mbtn{display:none}
+.mmenu{display:none}
+@media (max-width:640px){
+  .head-row{padding:14px 0;justify-content:space-between;flex-wrap:nowrap}
+  .head-side{display:none}
+  .mark{text-align:left}.mark b{font-size:22px;letter-spacing:.12em}.mark span{font-size:9.5px;margin-top:3px}
+  nav.main-nav{display:none}
+  .mbtn{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--ink);background:transparent;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:500}
+  .mmenu.on{display:block;border-top:1px solid var(--line);padding:6px 0 18px}
+  .mmenu a{display:block;padding:13px 0;border-bottom:1px solid var(--line);font-family:var(--display);font-size:24px;text-decoration:none}
+  .mmenu .btn{width:100%;margin-top:16px}
+  .hero{padding-top:36px}.page{padding:40px 0 64px}
+  .book .f{flex:1 1 100%}
+  .room .info h3{font-size:32px}
+  .fab{right:16px;bottom:16px;min-height:48px;padding:0 18px}
+}
+
+#roomlist{gap:0}
+#roomlist .rt{padding:44px 0 56px;border-top:1px solid var(--ink)}
+#roomlist .rt:nth-child(even){background:var(--bg-2);box-shadow:0 0 0 100vmax var(--bg-2);clip-path:inset(0 -100vmax)}
+#roomlist .rt-head{display:flex;align-items:baseline;gap:16px;margin-bottom:28px}
+#roomlist .rt-head .n{font-family:var(--display);font-style:italic;font-size:20px;color:var(--ink-3)}
+#roomlist .rt-head h2{font-size:clamp(34px,4vw,48px)}
+#roomlist .rt-head .av{margin-left:auto;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;white-space:nowrap}
+#roomlist .rt .info h3{display:none}
+@media (max-width:640px){#roomlist .rt{padding:32px 0 40px}#roomlist .rt-head{flex-wrap:wrap;gap:4px 12px}#roomlist .rt-head .av{margin-left:0;flex-basis:100%}}
+
+.searchbar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;background:var(--bg-2);padding:16px 20px;margin:-12px 0 36px;font-size:15px}
+.searchbar b{font-weight:500}
+.searchbar a{margin-left:auto;font-size:12px;letter-spacing:.2em;text-transform:uppercase;text-decoration:underline;text-underline-offset:5px}
+.flow{max-width:760px;margin:0 auto}
+.stepper{display:flex;gap:6px;margin:0 0 34px}
+.stepper div{flex:1;border-top:3px solid var(--line);padding-top:8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.stepper div.on{border-color:var(--ink);color:var(--ink);font-weight:500}
+.stepper div.done{border-color:var(--ink)}
+.fstep{display:none}.fstep.on{display:block}
+.form label{display:block;margin-top:20px}
+.form input,.form select{display:block;width:100%;min-height:46px;border:0;border-bottom:1px solid var(--ink);font:inherit;font-size:17px;background:transparent;margin-top:4px}
+.form .hint{font-size:13px;color:var(--ink-3);margin-top:4px}
+.form .err{color:#A42A3F;font-size:14px;margin-top:14px;min-height:20px}
+.actions{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.actions .btn{min-height:52px}
+.contract{border:1px solid var(--line);padding:24px;max-height:340px;overflow:auto;font-size:15px;color:var(--ink-2);background:#fff}
+.contract h3{font-size:24px;color:var(--ink);margin-bottom:10px}
+.sig{border:1px dashed var(--ink-3);background:#fff;width:100%;height:200px;touch-action:none;display:block}
+.paybox{border:1px solid var(--line);padding:28px;background:#fff}
+.xendit{background:var(--bg-2);padding:28px;text-align:center}
+.xendit .q{width:180px;height:180px;margin:18px auto;background:repeating-conic-gradient(#111 0 25%,#fff 0 50%) 0 0/24px 24px;border:10px solid #fff;outline:1px solid var(--line)}
+.done-mark{width:64px;height:64px;border:1px solid var(--ok);color:var(--ok);display:grid;place-items:center;font-size:28px;margin:0 auto 22px}
+</style>
+</head>
+<body>
+<div class="proto">Clickable prototype · sample data from the current site · try the menu, room cards, "Sewa kamar ini" lengths and the chat button</div>
+
+<header class="site-head">
+  <div class="wrap">
+    <div class="head-row">
+      <div class="head-side"><a class="tbtn" data-go="lokasi">Jl. Anggrek Raya No. 27</a></div>
+      <a class="mark" data-go="beranda"><b>RoemahKOE</b><span>Kost · dekat kampus</span></a>
+      <div class="head-side end"><a class="tbtn" data-go="masuk">Masuk penghuni</a><a class="btn pri" data-go="kamar">Lihat kamar</a></div>
+      <button class="mbtn" id="mbtn" aria-expanded="false">Menu</button>
+    </div>
+    <div class="mmenu" id="mmenu"><a data-go="beranda">Beranda</a><a data-go="kamar">Kamar</a><a data-go="fasilitas">Fasilitas</a><a data-go="biaya">Biaya</a><a data-go="lokasi">Lokasi</a><a data-go="aturan">Aturan</a><a data-go="faq">FAQ</a><a class="btn" data-go="masuk" style="font-family:var(--sans);font-size:12px">Masuk penghuni</a></div>
+    <nav class="main-nav" aria-label="Menu utama">
+      <a data-go="beranda">Beranda</a><a data-go="kamar">Kamar</a><a data-go="fasilitas">Fasilitas</a><a data-go="biaya">Biaya</a><a data-go="lokasi">Lokasi</a><a data-go="aturan">Aturan</a><a data-go="faq">FAQ</a>
+    </nav>
+  </div>
+</header>
+
+<!-- BERANDA -->
+<div class="view on" id="v-beranda">
+  <section class="hero"><div class="wrap">
+    <div class="lbl">Hunian butik dekat kampus</div>
+    <h1 style="margin-top:22px">Tinggal seperti di hotel favorit Anda.</h1>
+    <p class="lead">Kamar ber-AC dengan wifi 200 Mbps, dapur bersama, dan CCTV 24 jam. Tujuh tipe kamar, sewa 3 sampai 48 bulan, bayar per bulan.</p>
+    <div class="cta"><button class="btn pri" data-chat>Tanya asisten</button><a class="btn" data-go="kamar">Lihat tipe kamar</a></div>
+    <div class="tri"><img src="/files/vip-a-1.jpg" alt=""><img src="/files/standard-new-2.jpg" alt=""><img src="/files/vip-1-1.jpg" alt=""></div>
+    <form class="book" onsubmit="event.preventDefault();runSearch()">
+      <div class="f"><label class="lbl" for="bt">Tipe kamar</label><select id="bt"><option>Semua tipe</option><option>Standar</option><option>Standard New</option><option>Deluxe</option><option>New Deluxe</option><option>VIP 1</option><option>VIP 2</option><option>VIP A</option></select></div>
+      <div class="f"><label class="lbl" for="bd">Tanggal masuk</label><input id="bd" type="date" value="2026-11-01"></div>
+      <div class="f"><label class="lbl" for="bl">Lama tinggal</label><select id="bl"><option>3 bulan</option><option>6 bulan</option><option selected>12 bulan</option><option>24 bulan</option><option>36 bulan</option><option>48 bulan</option></select></div>
+      <button class="btn pri" type="submit">Cek ketersediaan</button>
+    </form>
+  </div></section>
+  <section class="page" style="padding-top:96px"><div class="wrap">
+    <div class="sec-head"><div class="lbl">Koleksi kamar</div><h2>Pilih tipe kamar Anda.</h2><p>Harga sudah termasuk wifi, air, dan kuota listrik 100 kWh.</p></div>
+    <div class="types" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+      <div class="type" data-type="STD-N"><img src="/files/standard-new-1.jpg" alt="Kamar Standard New" style="height:420px"><span class="tag" style="display:inline-block;margin-top:16px">Kos baru</span><h3 style="margin-top:10px">Standard New</h3><p>Panel kayu, lampu hangat, kabinet sudut berlampu, kamar mandi dalam berpancuran · <b style="color:var(--ok);font-weight:500">2 tersedia</b></p></div>
+      <div class="type" data-type="VIP-A"><img src="/files/vip-a-1.jpg" alt="Kamar VIP A" style="height:420px"><span class="tag" style="display:inline-block;margin-top:16px">Kos baru · VIP</span><h3 style="margin-top:10px">VIP A</h3><p>Lemari kayu setinggi plafon, meja kerja tanam berlampu, kamar mandi dalam berjendela tinggi · <b style="color:var(--ok);font-weight:500">1 tersedia</b></p></div>
+    </div>
+    <p style="margin-top:28px"><a class="btn" data-go="kamar">Lihat ketujuh tipe kamar</a></p>
+    <div class="doors">
+      <a class="door" data-go="fasilitas"><b>Fasilitas</b><span>6 fasilitas di dalam kos, 4 layanan berbayar</span></a>
+      <a class="door" data-go="biaya"><b>Biaya</b><span>Bayar bulanan, deposit 1× sewa</span></a>
+      <a class="door" data-go="lokasi"><b>Lokasi</b><span>Gerbang timur kampus, 6 menit jalan kaki</span></a>
+      <a class="door" data-go="aturan"><b>Aturan</b><span>5 aturan rumah dan aturan tamu menginap</span></a>
+      <a class="door" data-go="faq"><b>FAQ</b><span>6 pertanyaan yang paling sering ditanyakan</span></a>
+    </div>
+  </div></section>
+</div>
+
+<!-- KAMAR -->
+<div class="view" id="v-kamar"><section class="page"><div class="wrap">
+  <div class="sec-head"><div class="lbl">Koleksi kamar</div><h1>Tujuh tipe kamar, satu standar.</h1><p>Harga sudah termasuk wifi, air, dan kuota listrik. Deposit satu bulan, dikembalikan setelah cek kamar.</p></div>
+  <div id="sres"></div>
+  <div class="filters" id="rf"><button class="on" data-f="all">Semua</button><button data-f="new">Kos baru</button><button data-f="vip">VIP</button><button data-f="ensuite">Kamar mandi dalam</button><button data-f="avail">Tersedia saja</button></div>
+  <div class="rooms" id="roomlist"></div>
+</div></section></div>
+
+<!-- DETAIL -->
+<div class="view" id="v-detail"><section class="page"><div class="wrap">
+  <a class="back" data-go="kamar">← Semua tipe kamar</a>
+  <article class="room" id="detail"></article>
+</div></section></div>
+
+<!-- SEWA FLOW -->
+<div class="view" id="v-sewa"><section class="page"><div class="wrap"><div class="flow">
+  <a class="back" id="sewaBack">← Kembali ke tipe kamar</a>
+  <div class="lbl" id="sewaWhat"></div>
+  <h1 style="font-size:clamp(32px,4vw,48px);margin:12px 0 28px">Sewa kamar</h1>
+  <div class="stepper" id="stepper"><div>Data diri</div><div>Kontrak</div><div>Tanda tangan</div><div>Pembayaran</div></div>
+
+  <div class="fstep form" id="st0">
+    <label class="lbl">Nama lengkap sesuai KTP<input id="fName"></label>
+    <label class="lbl">Nomor HP aktif<input id="fPhone" inputmode="tel" placeholder="08xx xxxx xxxx"></label>
+    <label class="lbl">Tanggal lahir<input id="fDob" type="date"></label>
+    <label class="lbl">Nomor KTP (16 digit)<input id="fKtp" inputmode="numeric" maxlength="16"></label><div class="hint">Disimpan terenkripsi. Yang tampil hanya 4 angka terakhir.</div>
+    <label class="lbl">Foto KTP<input type="file" accept="image/*" id="fKtpPhoto"></label>
+    <label class="lbl">Buat password<input id="fPw" type="password"></label><div class="hint">Minimal 10 karakter. Dipakai untuk masuk sebagai penghuni.</div>
+    <label class="lbl">Ulangi password<input id="fPw2" type="password"></label>
+    <label class="lbl">Tanggal mulai masuk<input id="fStart" type="date"></label>
+    <label class="lbl">Lama kontrak<select id="fLen"><option value="3">3 bulan</option><option value="6">6 bulan</option><option value="12">12 bulan</option><option value="24">24 bulan</option><option value="36">36 bulan</option><option value="48">48 bulan</option></select></label>
+    <div class="err" id="e0"></div>
+    <div class="actions"><button class="btn pri" id="to1">Lanjut ke kontrak</button><button class="btn" id="fill">Isi contoh (prototipe)</button></div>
+  </div>
+
+  <div class="fstep" id="st1">
+    <div class="contract" id="contractText"></div>
+    <label style="display:flex;gap:10px;margin-top:18px;align-items:flex-start;font-size:15px"><input type="checkbox" id="agree" style="margin-top:6px"> Saya sudah membaca dan menyetujui seluruh isi kontrak di atas.</label>
+    <div class="err" id="e1"></div>
+    <div class="actions"><button class="btn pri" id="to2">Lanjut tanda tangan</button><button class="btn" data-back="0">Kembali</button></div>
+  </div>
+
+  <div class="fstep" id="st2">
+    <p style="color:var(--ink-2);margin-top:0">Tanda tangan di kotak ini dengan jari atau mouse.</p>
+    <canvas class="sig" id="sig"></canvas>
+    <div class="err" id="e2"></div>
+    <div class="actions"><button class="btn pri" id="to3">Simpan tanda tangan</button><button class="btn" id="sigClear">Ulangi</button><button class="btn" data-back="1">Kembali</button></div>
+  </div>
+
+  <div class="fstep" id="st3">
+    <div class="paybox"><div class="sum" id="paySum"></div></div>
+    <p style="color:var(--ink-2);font-size:14px">Bayar lewat QRIS, virtual account, atau e-wallet. Tidak ada pembayaran tunai.</p>
+    <div class="actions"><button class="btn pri" id="toPay">Bayar sekarang</button><button class="btn" data-back="2">Kembali</button></div>
+  </div>
+
+  <div class="fstep" id="st4">
+    <div class="xendit"><div class="lbl">Halaman pembayaran (simulasi Xendit)</div><div class="q"></div><p id="payAmt" style="font-family:var(--display);font-size:30px;margin:0"></p><p style="color:var(--ink-2);font-size:14px">Scan QRIS dengan aplikasi bank atau e-wallet.</p>
+    <button class="btn pri" id="paid">Saya sudah bayar (simulasi)</button></div>
+  </div>
+</div></div></section></div>
+
+<!-- PAID -->
+<div class="view" id="v-paid"><section class="page"><div class="wrap"><div class="flow" style="text-align:center">
+  <div class="done-mark">✓</div>
+  <div class="lbl">Pembayaran diterima</div>
+  <h1 style="font-size:clamp(32px,4vw,48px);margin:12px 0 18px">Selamat datang di RoemahKOE.</h1>
+  <p style="color:var(--ink-2)" id="paidText"></p>
+  <div class="actions" style="justify-content:center"><a class="btn pri" data-go="masuk">Masuk ke akun penghuni</a><button class="btn" data-chat>Kembali ke chat</button></div>
+  <p style="color:var(--ink-3);font-size:14px">Masuk pakai nomor HP dan password yang tadi Anda buat.</p>
+</div></div></section></div>
+
+<!-- FASILITAS -->
+<div class="view" id="v-fasilitas"><section class="page"><div class="wrap">
+  <div class="sec-head"><div class="lbl">Fasilitas</div><h1>Semua yang Anda butuhkan, sudah di sini.</h1><p>Yang ada di dalam kos, dan layanan yang bisa dipesan lewat asisten.</p></div>
+  <div class="cols">
+    <div><h3>Di dalam kos</h3><ul class="list">
+      <li><i>i</i><span>Wifi 200 Mbps, router tiap lantai</span></li><li><i>ii</i><span>Dapur bersama dengan kompor dan microwave</span></li><li><i>iii</i><span>Ruang belajar 24 jam di lantai 1</span></li><li><i>iv</i><span>CCTV 24 jam dan akses pintu pakai PIN</span></li><li><i>v</i><span>Parkir motor gratis, parkir mobil terbatas</span></li><li><i>vi</i><span>Dispenser air galon gratis</span></li></ul></div>
+    <div><h3>Layanan berbayar</h3><ul class="list">
+      <li><b>Laundry cuci setrika</b><span class="r">Rp 90.000 / bulan</span></li><li><b>Bersih kamar mingguan</b><span class="r">Rp 60.000 / bulan</span></li><li><b>Galon antar ke kamar</b><span class="r">Rp 6.000 / galon</span></li><li><b>Titip paket di resepsionis</b><span class="r">Gratis</span></li></ul>
+      <p style="color:var(--ink-2);font-size:15px;margin-top:16px">Pesan lewat asisten, tagihan masuk ke akun penghuni.</p></div>
+  </div>
+</div></section></div>
+
+<!-- BIAYA -->
+<div class="view" id="v-biaya"><section class="page"><div class="wrap">
+  <div class="sec-head"><div class="lbl">Biaya</div><h1>Transparan, sejak awal.</h1><p>Angka di halaman ini adalah sumber data yang dipakai asisten. Asisten tidak bisa mengarang harga atau memberi diskon.</p></div>
+  <table class="fee"><tr><th>Pos</th><th>Keterangan</th></tr>
+    <tr><td>Sewa</td><td>Lihat harga tiap kamar di halaman Kamar. Kontrak 3, 6, 12, 24, 36, atau 48 bulan, dibayar per bulan.</td></tr>
+    <tr><td>Deposit</td><td>1× sewa bulanan, dikembalikan maksimal 14 hari setelah keluar</td></tr>
+    <tr><td>Listrik</td><td>Kuota 100 kWh/bulan termasuk. Kelebihan Rp 1.700/kWh.</td></tr>
+    <tr><td>Air dan wifi</td><td>Termasuk, tanpa batas</td></tr>
+    <tr><td>Tamu menginap</td><td>Rp 50.000 per malam, maksimal 3 malam berturut-turut</td></tr>
+    <tr><td>Telat bayar</td><td>Denda harian mulai hari ke-8, sesuai tipe kamar</td></tr></table>
+  <div class="calc">
+    <div><h3>Hitung pembayaran pertama.</h3><p style="color:var(--ink-2)">Pilih kamar untuk melihat total yang dibayar saat tanda tangan.</p>
+      <label class="lbl" for="ck" style="display:block;margin-top:18px">Kamar</label><select id="ck"><option>Standard · Rp 1.350.000</option><option>Deluxe · Rp 1.850.000</option><option>Studio · Rp 2.500.000</option></select></div>
+    <div class="sum" style="align-self:end"><div><span>Sewa bulan pertama</span><span>Rp 1.350.000</span></div><div><span>Deposit</span><span>Rp 1.350.000</span></div><div class="tot"><span>Total</span><span>Rp 2.700.000</span></div></div>
+  </div>
+  <div class="sec-head" style="margin:72px 0 0"><div class="lbl">Cara menyewa</div><h2>Empat langkah, tanpa ke kantor.</h2></div>
+  <ol class="steps-ol">
+    <li><div class="n">i</div><div class="t">Pilih kamar</div><div class="d">Cek ketersediaan atau tanya asisten soal tipe dan harga.</div></li>
+    <li><div class="n">ii</div><div class="t">Isi data diri</div><div class="d">Nama, kontak, KTP, dan tanggal masuk di formulir aman.</div></li>
+    <li><div class="n">iii</div><div class="t">Tanda tangan digital</div><div class="d">Kontrak langsung di layar.</div></li>
+    <li><div class="n">iv</div><div class="t">Bayar & serah kunci</div><div class="d">QRIS, virtual account, atau e-wallet. Tidak ada pembayaran tunai.</div></li>
+  </ol>
+</div></section></div>
+
+<!-- LOKASI -->
+<div class="view" id="v-lokasi"><section class="page"><div class="wrap">
+  <div class="sec-head"><div class="lbl">Lokasi</div><h1>Sekitar kos.</h1><p>Jl. Anggrek Raya No. 27, dekat gerbang timur kampus. Jarak jalan kaki dari gerbang depan.</p></div>
+  <div class="map">Peta Google Maps</div>
+  <div class="near-grid">
+    <div class="near"><b>Gerbang timur kampus</b><span>6 menit jalan kaki</span></div><div class="near"><b>Indomaret dan Alfamart</b><span>3 menit</span></div><div class="near"><b>Warung makan dan burjo</b><span>2 menit</span></div><div class="near"><b>Halte bus kampus</b><span>5 menit</span></div><div class="near"><b>Klinik 24 jam</b><span>9 menit</span></div><div class="near"><b>ATM BCA dan Mandiri</b><span>4 menit</span></div><div class="near"><b>Lapangan futsal</b><span>8 menit</span></div>
+  </div>
+</div></section></div>
+
+<!-- ATURAN -->
+<div class="view" id="v-aturan"><section class="page"><div class="wrap">
+  <div class="sec-head"><div class="lbl">Aturan</div><h1>Supaya semua nyaman.</h1><p>Aturan yang sama tertulis di kontrak dan dipakai asisten.</p></div>
+  <div class="cols">
+    <div><h3>Aturan rumah</h3><ul class="list"><li><i>i</i><span>Tidak merokok di dalam kamar</span></li><li><i>ii</i><span>Tamu lawan jenis hanya di ruang tamu</span></li><li><i>iii</i><span>Jam tenang 22.00–05.00</span></li><li><i>iv</i><span>Jam tamu 06.00–22.00</span></li></ul></div>
+    <div><h3>Tamu menginap</h3><ul class="list"><li><i>i</i><span>Didaftarkan lewat asisten sebelum jam 21.00</span></li><li><i>ii</i><span>Rp 50.000 per malam per orang</span></li><li><i>iii</i><span>Maksimal 3 malam berturut-turut, maksimal 2 tamu</span></li><li><i>iv</i><span>Data tamu: nama lengkap, nomor HP, dan nomor KTP</span></li><li><i>v</i><span>Tamu lawan jenis tidak boleh menginap di kamar</span></li></ul></div>
+  </div>
+</div></section></div>
+
+<!-- FAQ -->
+<div class="view" id="v-faq"><section class="page faq"><div class="wrap" style="max-width:860px">
+  <div class="sec-head"><div class="lbl">FAQ</div><h1>Pertanyaan umum.</h1><p>Asisten menjawab dari daftar yang sama. Tidak menemukan jawabannya? <a data-chat style="text-decoration:underline">Tanya asisten</a>.</p></div>
+  <div>
+    <details open><summary>Apakah bisa sewa bulanan?</summary><p>Bisa. Kontrak 3 sampai 48 bulan, dibayar setiap bulan.</p></details>
+    <details><summary>Kapan bisa pindah masuk?</summary><p>Kamar berstatus tersedia bisa ditempati setelah kontrak ditandatangani dan pembayaran pertama masuk.</p></details>
+    <details><summary>Apakah listrik dibatasi?</summary><p>Setiap kamar dapat kuota 100 kWh per bulan. Kelebihan dihitung Rp 1.700 per kWh dan ditagih bulan berikutnya.</p></details>
+    <details><summary>Boleh bawa tamu menginap?</summary><p>Boleh, maksimal 3 malam berturut-turut, didaftarkan lewat asisten sebelum jam 21.00, biaya Rp 50.000 per malam.</p></details>
+    <details><summary>Bagaimana cara lapor kerusakan?</summary><p>Lewat asisten. Keluhan dibuatkan tiket, dan yang mendesak langsung dikirim ke pemilik.</p></details>
+    <details><summary>Apakah deposit kembali?</summary><p>Kembali penuh maksimal 14 hari setelah keluar, dikurangi kerusakan di luar pemakaian wajar.</p></details>
+  </div>
+</div></section></div>
+
+<!-- MASUK -->
+<div class="view" id="v-masuk"><section class="page"><div class="wrap"><div class="login">
+  <div class="lbl">Penghuni</div><h1 style="font-size:44px;margin:14px 0 32px">Masuk ke akun Anda.</h1>
+  <label class="lbl" for="lp">Nomor WhatsApp</label><input id="lp" placeholder="08xx xxxx xxxx">
+  <label class="lbl" for="lw">Kata sandi</label><input id="lw" type="password">
+  <button class="btn pri" style="width:100%;min-height:54px">Masuk</button>
+  <p style="color:var(--ink-2);font-size:14px;margin-top:18px">Lupa kata sandi? Minta link baru ke asisten.</p>
+</div></div></section></div>
+
+<footer><div class="wrap">
+  <div class="foot-top">
+    <div class="brand"><b>RoemahKOE</b><p>Kos mahasiswa, 6 menit jalan kaki ke kampus.</p></div>
+    <div class="foot-col"><span class="lbl">Jelajahi</span><a data-go="kamar">Kamar</a><a data-go="fasilitas">Fasilitas</a><a data-go="biaya">Biaya</a><a data-go="lokasi">Lokasi</a><a data-go="aturan">Aturan</a><a data-go="faq">FAQ</a></div>
+    <div class="foot-col"><span class="lbl">Kontak</span><span>Jl. Anggrek Raya No. 27</span><a>WhatsApp asisten</a><a data-go="masuk">Masuk penghuni</a></div>
+  </div>
+  <div class="foot-bot"><span>© 2026 RoemahKOE</span><span>Data pribadi penyewa disimpan terenkripsi sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.</span></div>
+</div></footer>
+
+<button class="fab" id="fab" data-chat>Chat sekarang</button>
+<div class="chat" id="chat" role="dialog" aria-label="Asisten">
+  <div class="ch"><div class="av">RK</div><div><b>Asisten RoemahKOE</b><small>Biasanya membalas langsung</small></div>
+    <div class="ctl"><button id="cbig" title="Perbesar">⤢</button><button id="cmin" title="Kecilkan jadi tombol">–</button></div></div>
+  <div class="msgs"><div class="b">Halo kak 👋 Saya asisten kos ini. Mau cari kamar, tanya harga, atau soal sewa kakak?</div><div class="b me">Kamar Deluxe masih ada yang kosong?</div><div class="b">Ada kak, B-206 kosong dan bisa masuk sekarang. Rp 1.850.000 per bulan, kamar mandi dalam dan balkon kecil. Mau saya kirim link sewanya?</div></div>
+  <div class="inp"><input placeholder="Tulis pesan…"><button class="btn pri">Kirim</button></div>
+</div>
+
+<script>
+function go(v){
+  const mm=document.getElementById('mmenu');if(mm){mm.classList.remove('on');document.getElementById('mbtn').textContent='Menu'}
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
+  document.querySelectorAll('nav.main-nav a').forEach(e=>e.classList.toggle('on',e.dataset.go===v||(v==='detail'&&e.dataset.go==='kamar')));
+  window.scrollTo(0,0);
+}
+const chat=document.getElementById('chat'),fab=document.getElementById('fab'),cbig=document.getElementById('cbig');
+function openChat(){chat.classList.add('on');fab.style.display='none'}
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]'); if(g){e.preventDefault();go(g.dataset.go);return}
+  if(e.target.closest('[data-chat]')){e.preventDefault();openChat()}
+});
+cbig.onclick=()=>{const b=chat.classList.toggle('big');cbig.textContent=b?'⤡':'⤢';cbig.title=b?'Perkecil':'Perbesar'};
+document.getElementById('cmin').onclick=()=>{chat.classList.remove('on','big');cbig.textContent='⤢';fab.style.display=''};
+document.querySelectorAll('.filters').forEach(f=>f.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;f.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))}));
+
+const ROOMS=[
+ {id:"STD",type:"Standar",tags:"",desc:"Tempat tidur single berlaci, lemari, meja, dan wastafel bercermin di sudut kamar.",bath:"Kamar mandi luar",extras:"Tempat tidur single berlaci, lemari, meja, wastafel",avail:2,total:4,photos:["standar-1"]},
+ {id:"STD-N",type:"Standard New",tags:"new ensuite",desc:"Kamar di kos baru dengan panel kayu, lampu bernuansa hangat, kabinet sudut berlampu, dan kamar mandi dalam berpancuran.",bath:"Kamar mandi dalam, shower, cermin LED",extras:"AC, kabinet sudut berlampu, lemari, meja",avail:2,total:6,photos:["standard-new-1","standard-new-2","standard-new-3"]},
+ {id:"DLX",type:"Deluxe",tags:"",desc:"Tempat tidur single, lemari tanam berpintu geser bercermin, meja belajar di depan jendela, rak dinding, dan wastafel.",bath:"Kamar mandi luar",extras:"Lemari pintu cermin, meja belajar, rak dinding, wastafel",avail:0,total:3,from:"15 Jan 2027",fromISO:"2027-01-15",photos:["deluxe-1"]},
+ {id:"DLX-N",type:"New Deluxe",tags:"",desc:"Tempat tidur single dengan dinding aksen cokelat, meja belajar dengan rak gantung, dan AC.",bath:"Kamar mandi luar",extras:"AC, meja belajar, rak gantung, lemari",avail:1,total:3,photos:["new-deluxe-1"]},
+ {id:"VIP-1",type:"VIP 1",tags:"vip",desc:"Tempat tidur double berlaci dengan headboard kayu bergaris, dua lampu gantung, nakas di kedua sisi, lantai parket, dan lemari tanam.",bath:"Menyusul",extras:"Tempat tidur double, 2 nakas, lampu gantung, lemari, meja",avail:1,total:2,photos:["vip-1-1"]},
+ {id:"VIP-2",type:"VIP 2",tags:"vip",desc:"Dua tempat tidur single berlaci, meja panjang dengan dua kursi di bawah jendela, dan lantai parket.",bath:"Menyusul",extras:"2 tempat tidur single, meja panjang dengan 2 kursi",avail:0,total:1,from:"1 Des 2026",fromISO:"2026-12-01",photos:["vip-2-1"]},
+ {id:"VIP-A",type:"VIP A",tags:"new vip ensuite",desc:"Kamar di kos baru dengan lemari kayu setinggi plafon, meja kerja tanam berlampu rak, headboard berlengkung, dan kamar mandi dalam berjendela tinggi.",bath:"Kamar mandi dalam, shower, kloset duduk, cermin LED",extras:"AC, meja kerja tanam, lemari tinggi, nakas",avail:1,total:2,photos:["vip-a-1","vip-a-2","vip-a-3","vip-a-4"]}
+];
+const tagText=r=>[r.tags.includes("new")?"Kos baru":"Kos lama",r.tags.includes("vip")?"VIP":"",r.tags.includes("ensuite")?"Kamar mandi dalam":""].filter(Boolean).join(" · ");
+const availText=r=>r.avail>0?`<span style="color:var(--ok)">${r.avail} kamar tersedia</span>`:`<span style="color:var(--warn)">Penuh · kosong mulai ${r.from}</span>`;
+const gallery=(r,big)=>`<div><div class="cover"><img class="cv" src="/files/${r.photos[0]}.jpg" alt="Kamar ${r.type}"><span class="status">${r.avail>0?"Tersedia":"Penuh"}</span></div>${r.photos.length>1?`<div class="thumbs">${r.photos.map((p,i)=>`<img class="${i?"":"on"}" src="/files/${p}.jpg" alt="">`).join("")}</div>`:""}</div>`;
+const specs=r=>`<dl class="specs"><div><dt>Ketersediaan</dt><dd>${availText(r)}</dd></div><div><dt>Ukuran</dt><dd>Menyusul</dd></div><div><dt>Kamar mandi</dt><dd>${r.bath}</dd></div><div><dt>Isi kamar</dt><dd>${r.extras}</dd></div></dl>`;
+function renderList(f){
+  document.getElementById('roomlist').innerHTML=ROOMS.filter(r=>f==="all"||(f==="avail"?r.avail>0:r.tags.includes(f))).map((r,i,a)=>`<section class="rt"><div class="rt-head"><h2>${r.type}</h2><span class="av" style="color:${r.avail>0?"var(--ok)":"var(--warn)"}">${r.avail>0?r.avail+" kamar tersedia":"Penuh"}</span></div><article class="room">${gallery(r)}<div class="info"><span class="tag">${tagText(r)}</span><h3>${r.type}</h3><p>${r.desc}</p>${specs(r)}<div class="buy"><div class="p"><b>Rp —</b> <small>/ bulan · harga menyusul</small></div><a class="btn ${r.avail>0?"pri":""}" data-type="${r.id}">${r.avail>0?"Lihat & sewa":"Lihat tipe ini"}</a></div></div></article></section>`).join("");
+}
+function renderDetail(id){
+  const r=ROOMS.find(x=>x.id===id);
+  document.getElementById('detail').innerHTML=`${gallery(r)}<div class="info"><span class="tag">${tagText(r)}</span><h3>${r.type}</h3><p>${r.desc}</p>${specs(r)}
+  <div class="rent"><h3>${r.avail>0?"Sewa tipe kamar ini":"Belum ada kamar kosong"}</h3>${r.avail>0?`
+   <div><div class="lbl" style="margin-bottom:8px">Lama kontrak</div><div class="opts lens">${[3,6,12,24,36,48].map(m=>`<button data-m="${m}" class="${m===12?"on":""}">${m} bln</button>`).join("")}</div></div>
+   <div class="sum"><div><span>Sewa bulan pertama</span><span>Rp —</span></div><div><span>Deposit (1× sewa)</span><span>Rp —</span></div><div><span>Setelah itu</span><span class="after">per bulan, 11× lagi</span></div><div class="tot"><span>Pembayaran pertama</span><span>Rp —</span></div></div>
+   <p style="margin:0;color:var(--ink-2);font-size:14px">Nomor kamar dipilihkan dari kamar ${r.type} yang kosong.</p>
+   <button class="btn pri" style="min-height:54px" data-sewa="${r.id}">Lanjut isi data</button>`:`<p style="margin:0;color:var(--ink-2)">Kamar ${r.type} berikutnya kosong mulai ${r.from}. Anda tetap bisa memesan untuk tanggal itu.</p><button class="btn pri" style="min-height:54px" data-sewa="${r.id}">Pesan mulai ${r.from}</button>`}
+   <button class="btn" data-chat>Tanya asisten dulu</button></div></div>`;
+}
+renderList("all");
+document.getElementById('rf').addEventListener('click',e=>{const b=e.target.closest('button');if(b)renderList(b.dataset.f)});
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-type]'); if(t){renderDetail(t.dataset.type);go('detail');return}
+  const th=e.target.closest('.thumbs img'); if(th){const room=th.closest('.room');room.querySelector('.cv').src=th.src;room.querySelectorAll('.thumbs img').forEach(x=>x.classList.toggle('on',x===th));return}
+  const lb=e.target.closest('.lens button'); if(lb){lb.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===lb));const a=document.querySelector('#detail .after');if(a)a.textContent='per bulan, '+(lb.dataset.m-1)+'× lagi'}
+});
+
+(function(){const h=location.hash.slice(1);if(!h)return;const [v,x]=h.split(':');if(v==='detail'&&x){renderDetail(x);go('detail')}else if(v==='chat'){openChat()}else go(v)})();
+document.getElementById('mbtn').onclick=()=>{const o=document.getElementById('mmenu').classList.toggle('on');document.getElementById('mbtn').textContent=o?'Tutup':'Menu'};
+
+const MONTHS=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const nice=iso=>{const d=new Date(iso+"T00:00:00");return d.getDate()+" "+MONTHS[d.getMonth()]+" "+d.getFullYear()};
+const addM=(iso,m)=>{const d=new Date(iso+"T00:00:00");d.setMonth(d.getMonth()+m);d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)};
+let SEARCH=null;
+function runSearch(){
+  const t=document.getElementById('bt').value,d=document.getElementById('bd').value||"2026-11-01",m=+document.getElementById('bl').value.split(" ")[0];
+  SEARCH={type:t,date:d,months:m};
+  const list=ROOMS.filter(r=>t==="Semua tipe"||r.type===t);
+  const okOn=r=>r.avail>0||(r.fromISO&&r.fromISO<=d);
+  const n=list.filter(okOn).length;
+  document.getElementById('sres').innerHTML=`<div class="searchbar"><span>Hasil untuk <b>${t}</b> · masuk <b>${nice(d)}</b> · <b>${m} bulan</b></span><span style="color:${n?"var(--ok)":"var(--warn)"}">${n?(t==="Semua tipe"?n+" tipe tersedia di tanggal itu":"Tersedia di tanggal itu"):"Belum tersedia di tanggal itu"}</span><a id="clearS">Hapus pencarian</a></div>`;
+  renderList("all",list,okOn,d);
+  go('kamar');
+}
+const _renderList=renderList;
+renderList=function(f,list,okOn,d){
+  const src=list||ROOMS;
+  const html=src.filter(r=>f==="all"||(f==="avail"?r.avail>0:r.tags.includes(f))).map(r=>{
+    const free=okOn?okOn(r):r.avail>0;
+    const av=free?(okOn&&!(r.avail>0)?"Tersedia mulai "+r.from:r.avail+" kamar tersedia"):"Penuh · kosong mulai "+r.from;
+    return `<section class="rt"><div class="rt-head"><h2>${r.type}</h2><span class="av" style="color:${free?"var(--ok)":"var(--warn)"}">${free?(r.avail>0?r.avail+" kamar tersedia":"Tersedia mulai "+r.from):"Penuh"}</span></div><article class="room">${gallery(r)}<div class="info"><span class="tag">${tagText(r)}</span><p>${r.desc}</p><dl class="specs"><div><dt>Ketersediaan</dt><dd style="color:${free?"var(--ok)":"var(--warn)"}">${av}</dd></div><div><dt>Ukuran</dt><dd>Menyusul</dd></div><div><dt>Kamar mandi</dt><dd>${r.bath}</dd></div><div><dt>Isi kamar</dt><dd>${r.extras}</dd></div></dl><div class="buy"><div class="p"><b>Rp —</b> <small>/ bulan · harga menyusul</small></div><a class="btn ${free?"pri":""}" data-type="${r.id}">${free?"Lihat & sewa":"Lihat tipe ini"}</a></div></div></article></section>`}).join("");
+  document.getElementById('roomlist').innerHTML=html||'<p style="color:var(--ink-2);padding:24px 0">Tidak ada tipe yang cocok.</p>';
+};
+document.addEventListener('click',e=>{if(e.target.id==='clearS'){SEARCH=null;document.getElementById('sres').innerHTML='';renderList("all")}});
+
+/* chat */
+const msgs=document.querySelector('#chat .msgs'),cin=document.querySelector('#chat .inp input'),csend=document.querySelector('#chat .inp .btn');
+function bubble(t,me){const b=document.createElement('div');b.className='b'+(me?' me':'');b.textContent=t;msgs.appendChild(b);msgs.scrollTop=msgs.scrollHeight}
+function reply(q){q=q.toLowerCase();
+  if(/kosong|tersedia|ada kamar/.test(q))return "Yang masih kosong sekarang: "+ROOMS.filter(r=>r.avail>0).map(r=>r.type+" ("+r.avail+")").join(", ")+". Mau saya kirim link sewanya?";
+  if(/harga|berapa|biaya/.test(q))return "Harga per tipe kamar masih menunggu data dari pemilik kak. Deposit 1× sewa, bayar per bulan.";
+  if(/vip/.test(q))return "Ada VIP 1, VIP 2, dan VIP A. VIP A di kos baru, ada kamar mandi dalam berjendela. Mau lihat?";
+  if(/halo|hai|pagi|siang|malam/.test(q))return "Halo kak 👋 Ada yang bisa saya bantu soal kamar?";
+  return "(Prototipe) Di website asli, pertanyaan ini dijawab asisten AI yang sama dengan di WhatsApp.";}
+function send(){const t=cin.value.trim();if(!t)return;bubble(t,true);cin.value='';setTimeout(()=>bubble(reply(t)),600)}
+csend.onclick=send;cin.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();send()}});
+
+/* sewa flow */
+let SEWA=null,sigDrawn=false;
+function stepTo(i){document.querySelectorAll('.fstep').forEach((x,j)=>x.classList.toggle('on',j===i));document.querySelectorAll('#stepper div').forEach((x,j)=>{x.classList.toggle('on',j===Math.min(i,3));x.classList.toggle('done',j<i)});window.scrollTo(0,0);if(i===2)setupSig()}
+function startSewa(id){
+  const r=ROOMS.find(x=>x.id===id);const lb=document.querySelector('#detail .lens button.on');
+  SEWA={r,months:SEARCH?SEARCH.months:(lb?+lb.dataset.m:12)};
+  document.getElementById('sewaWhat').textContent="Tipe "+r.type;
+  document.getElementById('fLen').value=String(SEWA.months);
+  document.getElementById('fStart').value=SEARCH?SEARCH.date:(r.fromISO||"2026-11-01");
+  ['e0','e1','e2'].forEach(x=>document.getElementById(x).textContent='');document.getElementById('agree').checked=false;
+  go('sewa');stepTo(0);
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-sewa]');if(b){e.preventDefault();startSewa(b.dataset.sewa)}const k=e.target.closest('[data-back]');if(k)stepTo(+k.dataset.back)});
+document.getElementById('sewaBack').onclick=()=>{renderDetail(SEWA.r.id);go('detail')};
+document.getElementById('fill').onclick=()=>{fName.value="Sinta Wulandari";fPhone.value="081234567890";fDob.value="2004-05-12";fKtp.value="3171234567890001";fPw.value="rahasia12345";fPw2.value="rahasia12345";e0.textContent=''};
+document.getElementById('to1').onclick=()=>{
+  const v=(id)=>document.getElementById(id).value.trim();let err="";
+  if(v('fName').length<3)err="Tulis nama lengkap sesuai KTP.";else if(!/^0\d{9,13}$/.test(v('fPhone').replace(/\s/g,'')))err="Nomor HP tidak valid.";else if(!v('fDob'))err="Isi tanggal lahir.";else if(!/^\d{16}$/.test(v('fKtp')))err="Nomor KTP harus 16 digit.";else if(v('fPw').length<10)err="Password minimal 10 karakter.";else if(v('fPw')!==v('fPw2'))err="Kedua password tidak sama.";else if(!v('fStart'))err="Isi tanggal mulai masuk.";
+  e0.textContent=err+(err?"":"");if(err)return;
+  SEWA.months=+fLen.value;SEWA.start=v('fStart');SEWA.name=v('fName');
+  contractText.innerHTML=`<h3>Perjanjian Sewa Kamar Kos</h3><p>Antara pemilik RoemahKOE dan <b>${SEWA.name}</b> (KTP ****${v('fKtp').slice(-4)}).</p><p>Kamar tipe <b>${SEWA.r.type}</b>, nomor kamar ditentukan pemilik dari kamar yang kosong. Sewa dimulai <b>${nice(SEWA.start)}</b> sampai <b>${nice(addM(SEWA.start,SEWA.months))}</b> (${SEWA.months} bulan).</p><p>Sewa dibayar setiap bulan. Deposit 1× sewa bulanan. Keterlambatan: pengingat setiap 2 hari pada minggu pertama, denda harian mulai hari ke-8, dan kontrak dapat diputus oleh pemilik setelah hari ke-14.</p><p>Penyewa wajib mematuhi aturan rumah dan aturan tamu menginap yang tercantum di website.</p><p style="color:var(--ink-3)">(Teks kontrak lengkap dari sistem yang sudah ada.)</p>`;
+  stepTo(1)};
+document.getElementById('to2').onclick=()=>{if(!agree.checked){e1.textContent="Centang persetujuan dulu ya.";return}stepTo(2)};
+function setupSig(){const c=document.getElementById('sig');const r=c.getBoundingClientRect();c.width=r.width;c.height=r.height;const x=c.getContext('2d');x.lineWidth=2.2;x.lineCap='round';x.strokeStyle='#111';sigDrawn=false;let d=false;
+  const pos=e=>{const b=c.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]};
+  c.onpointerdown=e=>{d=true;x.beginPath();x.moveTo(...pos(e));try{c.setPointerCapture(e.pointerId)}catch(_){}};
+  c.onpointermove=e=>{if(!d)return;e.preventDefault();x.lineTo(...pos(e));x.stroke();sigDrawn=true};
+  c.onpointerup=()=>d=false;}
+document.getElementById('sigClear').onclick=setupSig;
+document.getElementById('to3').onclick=()=>{if(!sigDrawn){e2.textContent="Tanda tangannya belum ada.";return}
+  paySum.innerHTML=`<div><span>Kamar</span><span>${SEWA.r.type}</span></div><div><span>Mulai</span><span>${nice(SEWA.start)} · ${SEWA.months} bulan</span></div><div><span>Sewa bulan pertama</span><span>Rp —</span></div><div><span>Deposit (dikembalikan)</span><span>Rp —</span></div><div class="tot"><span>Total pembayaran pertama</span><span>Rp —</span></div>`;stepTo(3)};
+document.getElementById('toPay').onclick=()=>{payAmt.textContent="Rp — (harga menyusul)";stepTo(4)};
+document.getElementById('paid').onclick=()=>{paidText.textContent=`Kontrak ${SEWA.r.type} Anda mulai ${nice(SEWA.start)} untuk ${SEWA.months} bulan. Nomor kamar dan salinan kontrak ada di akun penghuni. Pemilik sudah mendapat pemberitahuan.`;go('paid')};
+</script>
+</body>
+</html>

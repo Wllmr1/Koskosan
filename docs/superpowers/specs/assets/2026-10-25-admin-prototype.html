@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#111;--ink2:#6A6763;--line:#E9E5DF;--page:#F6F2EE;--card:#fff;--band:#F1ECE5;--ok:#1E6B45;--okf:#5FA67A;--warn:#9A6410;--warnf:#D9A441;--bad:#A42A3F;--badf:#C9566B;--occ:#3A3734}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:Jost,system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:inherit}
+.proto-note{background:#111;color:#fff;font-size:13px;padding:8px 20px;text-align:center}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 36px)}
+.side{background:#fff;border-right:1px solid var(--line);padding:20px 0;position:sticky;top:0;height:calc(100vh - 36px);overflow:auto}
+.word{font-family:"Bodoni Moda",serif;font-size:21px;padding:0 22px 18px;display:block;cursor:pointer}
+.grp{font-size:12px;color:var(--ink2);padding:14px 22px 6px}
+.nav{display:flex;align-items:center;padding:8px 22px;cursor:pointer;color:var(--ink);text-decoration:none;border-left:3px solid transparent}
+.nav:hover{background:var(--page)}
+.nav.on{background:var(--band);border-left-color:var(--ink);font-weight:500}
+.nav .c{margin-left:auto;font-size:12px;color:#fff;background:var(--bad);padding:0 7px;line-height:18px}
+.main{min-width:0}
+.top{display:flex;align-items:center;gap:18px;padding:14px 32px;background:#fff;border-bottom:1px solid var(--line)}
+.top h1{font-size:20px;font-weight:500;margin:0}
+.top .r{margin-left:auto;display:flex;gap:16px;align-items:center}
+.top .r a{color:var(--ink2);text-decoration:none;cursor:pointer}
+.btn{display:inline-block;border:1px solid var(--ink);padding:6px 12px;font-size:13px;font-weight:500;background:#fff;color:var(--ink);cursor:pointer;font-family:inherit}
+.btn.pri{background:var(--ink);color:#fff}
+.body{padding:26px 32px 48px;max-width:1080px}
+.view{display:none}.view.on{display:block}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.tile{background:var(--card);border:1px solid var(--line);cursor:pointer;display:flex;flex-direction:column;transition:border-color .15s}
+.tile:hover{border-color:var(--ink)}
+.tile .h{background:var(--band);padding:10px 16px;display:flex;align-items:baseline;font-weight:500}
+.tile .h span{margin-left:auto;font-weight:400;font-size:13px;color:var(--ink2)}
+.tile .h span.bad{color:var(--bad)}
+.tile .b{padding:14px 16px 16px;flex:1}
+.tile .big{font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .lbl{color:var(--ink2);font-size:13px}
+.tile.wide{grid-column:span 2}
+.stack{display:flex;gap:2px;height:14px;margin:14px 0 8px}
+.stack i{display:block;height:100%;border-radius:2px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2)}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:var(--c)}
+.prog{height:10px;background:var(--line);border-radius:2px;margin:12px 0 6px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--occ);border-radius:2px}
+.mini{margin-top:10px}
+.mini div{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.mini div span:last-child{margin-left:auto;color:var(--ink2);white-space:nowrap}
+.more{font-size:13px;color:var(--ink2);margin-top:10px}
+.panel{background:#fff;border:1px solid var(--line)}
+.panel .h{background:var(--band);padding:12px 20px;display:flex;align-items:baseline;gap:12px}
+.panel .h b{font-weight:500}
+.panel .h span{color:var(--ink2);font-size:13px}
+.panel .h .x{margin-left:auto}
+.panel .in{padding:6px 20px 12px}
+.filters{display:flex;gap:6px;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:#fff;padding:4px 10px;font-size:13px;cursor:pointer}
+.chip.on{border-color:var(--ink);font-weight:500}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-weight:400;font-size:13px;color:var(--ink2);padding:10px 14px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px 10px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td small{display:block;color:var(--ink2);font-size:12px}
+.m{color:var(--ink2)}
+.st{white-space:nowrap}
+.st::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px;vertical-align:1px;background:currentColor}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.mute{color:var(--ink2)}
+.f{font:inherit;font-size:13px;border:0;border-bottom:1px solid #CFC9C1;background:transparent;padding:3px 0;width:100%}
+.l{text-decoration:underline;text-underline-offset:3px;text-decoration-color:#CFC9C1;cursor:pointer}
+.crumb{font-size:13px;color:var(--ink2);margin-bottom:12px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="proto-note">Clickable prototype · placeholder data · try the left menu, the cards and the "← Dashboard" links</div>
+<div class="shell">
+  <aside class="side">
+    <span class="word" data-go="dash">RoemahKOE</span>
+    <a class="nav on" data-go="dash">Dashboard</a>
+    <div class="grp">Sewa</div>
+    <a class="nav" data-go="kamar">Kamar</a>
+    <a class="nav" data-go="tagihan">Tagihan <span class="c">1</span></a>
+    <a class="nav" data-go="penghuni">Penghuni</a>
+    <a class="nav" data-go="pendaftaran">Pendaftaran</a>
+    <div class="grp">Harian</div>
+    <a class="nav" data-go="keluhan">Keluhan <span class="c">1</span></a>
+    <a class="nav" data-go="tamu">Tamu menginap</a>
+    <a class="nav" data-go="meteran">Catat meteran</a>
+    <div class="grp">Lainnya</div>
+    <a class="nav" data-go="notif">Notifikasi</a>
+    <a class="nav" data-go="chat">Percakapan</a>
+    <a class="nav" data-go="data">Data kos</a>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <h1 id="title">Dashboard</h1>
+      <div class="r"><a>Lihat situs</a><a>Keluar</a><button class="btn pri" data-go="baru">Tambah penghuni</button></div>
+    </div>
+    <div class="body">
+
+      <!-- DASHBOARD -->
+      <div class="view on" id="v-dash">
+        <div class="tiles">
+          <div class="tile wide" data-go="kamar">
+            <div class="h">Kamar <span>12 kamar</span></div>
+            <div class="b">
+              <div class="big">3 kosong</div><div class="lbl">bisa langsung ditawarkan asisten</div>
+              <div class="stack" role="img" aria-label="Kamar: 7 terisi, 1 dibooking, 3 tersedia, 1 perbaikan">
+                <i style="flex:7;background:var(--occ)" title="Terisi: 7"></i><i style="flex:1;background:var(--warnf)" title="Dibooking: 1"></i><i style="flex:3;background:var(--okf)" title="Tersedia: 3"></i><i style="flex:1;background:var(--badf)" title="Perbaikan: 1"></i>
+              </div>
+              <div class="legend"><span style="--c:var(--occ)">Terisi 7</span><span style="--c:var(--warnf)">Dibooking 1</span><span style="--c:var(--okf)">Tersedia 3</span><span style="--c:var(--badf)">Perbaikan 1</span></div>
+            </div>
+          </div>
+          <div class="tile" data-go="tagihan">
+            <div class="h">Tagihan <span class="bad">1 terlambat</span></div>
+            <div class="b">
+              <div class="big">Rp 3.200.000</div><div class="lbl">belum dibayar</div>
+              <div class="prog" role="img" aria-label="Sewa Oktober: 78% sudah dibayar"><i style="width:78%"></i></div>
+              <div class="lbl">Sewa Oktober 78% sudah dibayar</div>
+            </div>
+          </div>
+          <div class="tile" data-go="penghuni">
+            <div class="h">Penghuni <span>aktif</span></div>
+            <div class="b"><div class="big">9</div><div class="lbl">penghuni aktif</div>
+              <div class="mini"><div><span>Kontrak habis ≤ 60 hari</span><span>2</span></div></div>
+            </div>
+          </div>
+          <div class="tile" data-go="keluhan">
+            <div class="h">Keluhan <span class="bad">1 darurat</span></div>
+            <div class="b"><div class="big">1</div><div class="lbl">keluhan terbuka</div>
+              <div class="mini"><div><span>AC bocor · A-105</span><span>22 Okt</span></div></div>
+            </div>
+          </div>
+          <div class="tile" data-go="pendaftaran">
+            <div class="h">Pendaftaran <span>berjalan</span></div>
+            <div class="b"><div class="big">2</div><div class="lbl">calon penghuni sedang mendaftar</div>
+              <div class="mini"><div><span>Yoga R. · C-302</span><span class="warn">menunggu bayar</span></div></div>
+            </div>
+          </div>
+          <div class="tile wide" data-go="notif">
+            <div class="h">Notifikasi terakhir <span>juga dikirim ke email dan WhatsApp</span></div>
+            <div class="b" style="padding-top:6px">
+              <div class="mini" style="margin-top:0">
+                <div><span>Pembayaran masuk · Rp 3.700.000 · B-201</span><span>23 Okt 14.32</span></div>
+                <div><span>Kontrak ditandatangani · APP-1042 · B-201</span><span>23 Okt 14.10</span></div>
+                <div><span>Keluhan darurat · A-105 · AC bocor</span><span>22 Okt 21.05</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="tile" data-go="tamu">
+            <div class="h">Tamu menginap <span>7 hari</span></div>
+            <div class="b"><div class="big">2</div><div class="lbl">tamu terdaftar minggu ini</div></div>
+          </div>
+          <div class="tile" data-go="chat">
+            <div class="h">Asisten <span>30 hari</span></div>
+            <div class="b"><div class="big">$4.18</div><div class="lbl">biaya AI · 312 balasan</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KAMAR -->
+      <div class="view" id="v-kamar">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="filters"><span class="chip on">Semua 12</span><span class="chip">Tersedia 3</span><span class="chip">Terisi 7</span><span class="chip">Dibooking 1</span><span class="chip">Perbaikan 1</span></div>
+        <div class="panel"><div class="h"><b>Kamar dan ketersediaan</b><span>Sumber data yang dibaca situs dan asisten.</span></div><div class="in">
+          <table>
+            <tr><th>Kamar</th><th>Status</th><th>Harga / bulan</th><th>Kosong mulai</th><th></th></tr>
+            <tr><td>A-101<small>Standard</small></td><td><select class="f"><option>Tersedia</option><option>Terisi</option><option>Dibooking</option><option>Perbaikan</option></select></td><td><input class="f" value="1350000"></td><td><input class="f" placeholder="hh/bb/tttt"></td><td><button class="btn">Simpan</button></td></tr>
+            <tr><td>A-103<small>Standard</small></td><td><select class="f"><option>Terisi</option></select></td><td><input class="f" value="1350000"></td><td><input class="f" value="15/01/2027"></td><td><button class="btn">Simpan</button></td></tr>
+            <tr><td>B-201<small>Deluxe</small></td><td><select class="f"><option>Terisi</option></select></td><td><input class="f" value="1850000"></td><td><input class="f" value="31/10/2027"></td><td><button class="btn">Simpan</button></td></tr>
+            <tr><td>C-301<small>Studio</small></td><td><select class="f"><option>Perbaikan</option></select></td><td><input class="f" value="2500000"></td><td><input class="f"></td><td><button class="btn">Simpan</button></td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- TAGIHAN -->
+      <div class="view" id="v-tagihan">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="filters"><span class="chip on">Belum lunas 2</span><span class="chip">Terlambat 1</span><span class="chip">Lunas bulan ini</span></div>
+        <div class="panel"><div class="h"><b>Tagihan belum lunas</b><span>Rp 3.200.000 total</span></div><div class="in">
+          <table>
+            <tr><th>Tagihan</th><th>Penghuni</th><th>Jatuh tempo</th><th style="text-align:right">Sisa</th></tr>
+            <tr><td>INV-2210<small>Sewa Oktober</small></td><td>Rina A.<small>A-103</small></td><td><span class="st bad">5 Okt · terlambat 19 hari</span></td><td style="text-align:right">Rp 1.350.000</td></tr>
+            <tr><td>INV-2231<small>Sewa November</small></td><td>Dimas P.<small>B-204</small></td><td><span class="st warn">5 Nov</span></td><td style="text-align:right">Rp 1.850.000</td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- PENGHUNI -->
+      <div class="view" id="v-penghuni">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="panel"><div class="h"><b>Penghuni aktif</b><span>9 penghuni</span><span class="x"><button class="btn" data-go="baru">Tambah penghuni</button></span></div><div class="in">
+          <table>
+            <tr><th>Akun</th><th>Kamar</th><th>Skema</th><th>Kontrak</th><th>Dokumen</th><th>Akses</th></tr>
+            <tr><td>Rina A.<small>WA-0003</small></td><td>A-103</td><td class="m">Bulanan</td><td>1 Jul 2026 – 31 Des 2026</td><td><span class="l">Kontrak</span> · <span class="l">KTP</span></td><td><button class="btn">Kirim link password</button></td></tr>
+            <tr><td>Dimas P.<small>WA-0005</small></td><td>B-204</td><td class="m">Tahunan</td><td>1 Feb 2026 – 31 Jan 2027</td><td><span class="l">Kontrak</span> · <span class="l">KTP</span></td><td><button class="btn">Kirim link password</button></td></tr>
+            <tr><td>Sinta W.<small>WA-0009</small></td><td>B-201</td><td class="m">Bulanan</td><td>1 Nov 2026 – 31 Okt 2027</td><td><span class="l">Kontrak</span> · <span class="l">KTP</span></td><td><button class="btn">Kirim link password</button></td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- PENDAFTARAN -->
+      <div class="view" id="v-pendaftaran">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="panel"><div class="h"><b>Pendaftaran</b><span>2 berjalan</span></div><div class="in">
+          <table>
+            <tr><th>Ref</th><th>Calon penghuni</th><th>Kamar</th><th>Status</th></tr>
+            <tr><td>APP-1043</td><td>Yoga R.</td><td>C-302</td><td><span class="st warn">Menunggu pembayaran</span></td></tr>
+            <tr><td>APP-1044</td><td>Lia K.</td><td>A-105</td><td><span class="st mute">Data diisi</span></td></tr>
+            <tr><td>APP-1042</td><td>Sinta W.</td><td>B-201</td><td><span class="st ok">Selesai</span></td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- KELUHAN -->
+      <div class="view" id="v-keluhan">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="panel"><div class="h"><b>Keluhan terbuka</b><span>1 darurat</span></div><div class="in">
+          <table>
+            <tr><th>Tiket</th><th>Penghuni</th><th>Kategori</th><th>Isi</th><th>Urgensi</th></tr>
+            <tr><td>TK-118</td><td>Andi S.<small>A-105</small></td><td class="m">AC</td><td>AC bocor, air menetes ke kasur</td><td><span class="st bad">darurat</span></td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- TAMU -->
+      <div class="view" id="v-tamu">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="panel"><div class="h"><b>Tamu menginap</b><span>7 hari terakhir</span></div><div class="in">
+          <table>
+            <tr><th>Kode</th><th>Tamu</th><th>Host</th><th>Menginap</th><th>Status</th></tr>
+            <tr><td>GS-031</td><td>Budi H.</td><td>Dimas P.<small>B-204</small></td><td>24–26 Okt · 2 malam</td><td><span class="st ok">Lunas</span></td></tr>
+            <tr><td>GS-030</td><td>Nia P.</td><td>Rina A.<small>A-103</small></td><td>20 Okt · 1 malam</td><td><span class="st ok">Lunas</span></td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- NOTIFIKASI -->
+      <div class="view" id="v-notif">
+        <div class="crumb" data-go="dash">← Dashboard</div>
+        <div class="panel"><div class="h"><b>Notifikasi</b><span>Setiap kontrak, pembayaran, dan keluhan darurat dikirim ke email dan WhatsApp kakak.</span></div><div class="in">
+          <table>
+            <tr><th>Waktu</th><th>Jenis</th><th>Isi</th><th>Terkirim</th></tr>
+            <tr><td>23 Okt 14.32</td><td>Pembayaran masuk</td><td class="m">Rp 3.700.000 · sewa pertama + deposit · B-201</td><td class="m">email · wa</td></tr>
+            <tr><td>23 Okt 14.10</td><td>Kontrak ditandatangani</td><td class="m">APP-1042 · B-201 · mulai 1 Nov 2026</td><td class="m">email · wa</td></tr>
+            <tr><td>22 Okt 21.05</td><td>Keluhan darurat</td><td class="m">A-105 · AC bocor</td><td><span class="st warn">wa gagal, dicoba ulang</span></td></tr>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- OTHER EXISTING PAGES -->
+      <div class="view" id="v-meteran"><div class="crumb" data-go="dash">← Dashboard</div><div class="panel"><div class="h"><b>Catat meteran</b><span>Halaman yang sudah ada, dengan tampilan baru</span></div><div class="in"><p class="m">Form catat meteran listrik per kamar (sama seperti sekarang).</p></div></div></div>
+      <div class="view" id="v-chat"><div class="crumb" data-go="dash">← Dashboard</div><div class="panel"><div class="h"><b>Percakapan</b><span>Halaman yang sudah ada, dengan tampilan baru</span></div><div class="in"><p class="m">Daftar percakapan asisten (sama seperti sekarang).</p></div></div></div>
+      <div class="view" id="v-data"><div class="crumb" data-go="dash">← Dashboard</div><div class="panel"><div class="h"><b>Data kos</b><span>Halaman yang sudah ada, dengan tampilan baru</span></div><div class="in"><p class="m">Pengaturan kos, kamar, layanan, sekitar, FAQ, foto (sama seperti sekarang).</p></div></div></div>
+      <div class="view" id="v-baru"><div class="crumb" data-go="dash">← Dashboard</div><div class="panel"><div class="h"><b>Tambah penghuni</b><span>Penyewa yang tanda tangan di kertas</span></div><div class="in"><p class="m">Form tambah penghuni (sama seperti sekarang).</p></div></div></div>
+
+    </div>
+  </div>
+</div>
+<script>
+const titles={dash:"Dashboard",kamar:"Kamar",tagihan:"Tagihan",penghuni:"Penghuni",pendaftaran:"Pendaftaran",keluhan:"Keluhan",tamu:"Tamu menginap",meteran:"Catat meteran",notif:"Notifikasi",chat:"Percakapan",data:"Data kos",baru:"Tambah penghuni"};
+function go(v){
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
+  document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('on',e.dataset.go===v));
+  document.getElementById('title').textContent=titles[v]||v;
+  window.scrollTo(0,0);
+}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-go]');if(t){e.preventDefault();go(t.dataset.go);}});
+document.querySelectorAll('.filters').forEach(f=>f.addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;f.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===c));}));
+</script>
+</body>
+</html>
