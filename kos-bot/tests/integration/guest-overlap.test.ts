@@ -1,9 +1,9 @@
-import { ContactType, LeasePlan, LeaseStatus } from "@prisma/client";
+import { ContactType, LeasePlan, LeaseStatus, RoomStatus } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { TOOLS } from "@/lib/chat/tools";
-import { makeCtx, uniq } from "../helpers";
+import { makeCtx, makeRoom, uniq } from "../helpers";
 
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 const register = TOOLS.find((t) => t.name === "register_guest")!;
@@ -11,7 +11,7 @@ let ctx: ReturnType<typeof makeCtx>;
 
 beforeAll(async () => {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: "A-103" }, include: { roomType: true } });
+  const room = await makeRoom({ status: RoomStatus.OCCUPIED });
   const tenant = await prisma.tenant.create({
     data: {
       accountCode: `WA-G${id}`,

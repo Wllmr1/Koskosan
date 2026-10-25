@@ -1,17 +1,19 @@
-import { ContactType, LeasePlan, LeaseStatus } from "@prisma/client";
+import { ContactType, LeasePlan, LeaseStatus, RoomStatus } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { renterCookieValue, renterFromCookie } from "@/lib/renter-auth";
 import { findWebContactId, resolveWebContext } from "@/lib/chat/context";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 
 let activeId = "";
 let endedId = "";
+let roomCode = "";
 
 async function tenantWithLease(status: LeaseStatus) {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: "B-201" }, include: { roomType: true } });
+  const room = await makeRoom({ status: status === LeaseStatus.ACTIVE ? RoomStatus.OCCUPIED : RoomStatus.AVAILABLE });
+  if (status === LeaseStatus.ACTIVE) roomCode = room.code;
   const tenant = await prisma.tenant.create({
     data: {
       accountCode: `WA-A${id}`,
@@ -64,7 +66,7 @@ describe("website chat identity", () => {
     const ctx = await resolveWebContext({ anonId: `anon-auth-${uniq()}`, tenantId: activeId });
     expect(ctx.type).toBe(ContactType.MEMBER);
     expect(ctx.verified).toBe(true);
-    expect(ctx.roomCode).toBe("B-201");
+    expect(ctx.roomCode).toBe(roomCode);
   });
 
   it("a renter whose lease ended is treated as a visitor", async () => {

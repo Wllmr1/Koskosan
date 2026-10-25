@@ -5,14 +5,14 @@ import { encrypt } from "@/lib/crypto";
 import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
 import { recordPayment } from "@/lib/payments";
 import { purgeChatMemory } from "@/lib/jobs";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 afterAll(() => prisma.$disconnect());
 
-async function signedApplication(roomCode: string) {
+async function signedApplication() {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: roomCode }, include: { roomType: true } });
+  const room = await makeRoom();
   const contact = await prisma.contact.create({
     data: { channel: "WEB", webSessionId: `anon:pay-${id}`, type: "PROSPECT", expiresAt: new Date(Date.now() + 86_400_000) },
   });
@@ -55,7 +55,7 @@ const pay = (code: string, amount: number) => ({
 
 describe("recordPayment on a signed application", () => {
   it("creates the renter, lease and occupied room, tells everyone, and is idempotent", async () => {
-    const { room, contact, app, invoice } = await signedApplication("A-105");
+    const { room, contact, app, invoice } = await signedApplication();
 
     expect(await ensurePaymentUrl(invoice.id)).toBe(`http://localhost:3000/dev/pay/${invoice.code}`);
 
@@ -74,7 +74,7 @@ describe("recordPayment on a signed application", () => {
     expect(alert?.title).toMatch(/Kontrak baru/);
 
     const anonMsg = await prisma.message.findFirst({ where: { conversation: { contactId: contact.id }, role: "ASSISTANT" } });
-    expect(anonMsg?.content).toMatch(/Kontrak kamar \*A-105\*/);
+    expect(anonMsg?.content).toContain(`Kontrak kamar *${room.code}*`);
     expect(anonMsg?.actions).toEqual([{ kind: "link", label: "Masuk", path: "/masuk" }]);
 
     const renterMsg = await prisma.message.findFirst({
@@ -84,7 +84,7 @@ describe("recordPayment on a signed application", () => {
   });
 
   it("the 24-hour purge of the visitor's chat keeps the signed application", async () => {
-    const { contact, app, invoice } = await signedApplication("B-206");
+    const { contact, app, invoice } = await signedApplication();
     await recordPayment(pay(invoice.code, invoice.amount));
 
     await prisma.contact.update({ where: { id: contact.id }, data: { expiresAt: new Date(Date.now() - 1000) } });

@@ -7,12 +7,11 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { recordPayment } from "@/lib/payments";
 import { purgeChatMemory } from "@/lib/jobs";
 import { getObject, putObject } from "@/lib/storage";
-import { uniq } from "../helpers";
+import { makeRoom, uniq } from "../helpers";
 
 afterAll(() => prisma.$disconnect());
 
 async function application(opts: {
-  roomCode: string;
   phone: string;
   idNumber: string;
   dob?: string;
@@ -20,7 +19,7 @@ async function application(opts: {
   signed?: { rent: number; deposit: number; months: number };
 }) {
   const id = uniq();
-  const room = await prisma.room.findFirstOrThrow({ where: { code: opts.roomCode }, include: { roomType: true } });
+  const room = await makeRoom();
   const contact = await prisma.contact.create({
     data: { channel: "WEB", webSessionId: `anon:safety-${id}`, type: "PROSPECT", expiresAt: new Date(Date.now() + 86_400_000) },
   });
@@ -62,7 +61,7 @@ const pay = (code: string, amount: number) =>
 describe("abandoned applications do not keep personal data", () => {
   it("an expired application is scrubbed and its KTP and signature files deleted", async () => {
     const id = uniq();
-    const { app } = await application({ roomCode: "C-302", phone: `+62815${id}`, idNumber: `3203000${id}` });
+    const { app } = await application({ phone: `+62815${id}`, idNumber: `3203000${id}` });
     const ktpKey = `ktp/${app.reference}-test.jpg`;
     const sigKey = `signatures/${app.reference}.png`;
     await putObject(ktpKey, Buffer.from("ktp"), "image/jpeg");
@@ -88,7 +87,6 @@ describe("the lease follows the signed contract", () => {
   it("keeps the signed rent, deposit and term even if the owner changes the room afterwards", async () => {
     const id = uniq();
     const { room, invoice } = await application({
-      roomCode: "B-204",
       phone: `+62816${id}`,
       idNumber: `3204000${id}`,
       signed: { rent: 1_850_000, deposit: 1_850_000, months: 3 },
@@ -125,7 +123,7 @@ describe("an application cannot take over an existing renter's account", () => {
 
   it("a different person using the renter's phone is held for the owner, account untouched", async () => {
     const renter = await existingRenter();
-    const { app, invoice } = await application({ roomCode: "A-105", phone: renter.phoneE164, idNumber: "3209999999990001" });
+    const { app, invoice } = await application({ phone: renter.phoneE164, idNumber: "3209999999990001" });
 
     expect(await pay(invoice.code, invoice.amount)).toBe("paid");
 
@@ -141,7 +139,7 @@ describe("an application cannot take over an existing renter's account", () => {
   it("the same person (same KTP and date of birth) coming back gets the new lease and password", async () => {
     const renter = await existingRenter();
     const idNumber = `3205000${renter.accountCode.slice(4)}`;
-    const { invoice } = await application({ roomCode: "B-206", phone: renter.phoneE164, idNumber, dob: "2002-02-02" });
+    const { invoice } = await application({ phone: renter.phoneE164, idNumber, dob: "2002-02-02" });
 
     expect(await pay(invoice.code, invoice.amount)).toBe("paid");
 
