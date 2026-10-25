@@ -6,7 +6,10 @@ import { POST as roomTypes } from "@/app/api/admin/data/room-types/route";
 import { POST as rooms } from "@/app/api/admin/data/rooms/route";
 import { makeRoom, uniq } from "../helpers";
 
-vi.mock("@/lib/auth", async (orig) => ({ ...(await orig<typeof import("@/lib/auth")>()), isOwner: async () => true }));
+vi.mock("@/lib/admin-auth", async (orig) => ({
+  ...(await orig<typeof import("@/lib/admin-auth")>()),
+  currentAdmin: async () => ({ sessionId: "test", isOwner: true, adminId: null, name: "Pemilik", email: "owner@kos.test" }),
+}));
 
 afterAll(() => prisma.$disconnect());
 

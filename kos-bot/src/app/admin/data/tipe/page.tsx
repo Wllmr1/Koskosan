@@ -3,8 +3,10 @@ import { rp } from "@/lib/money";
 import { tagsOf } from "@/lib/room-types";
 import Notice from "@/components/admin/Notice";
 import RoomTypeFields from "@/components/admin/RoomTypeFields";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function RoomTypesPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+  await requireAdmin();
   const q = await searchParams;
   const types = await prisma.roomType.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],

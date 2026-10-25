@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { isOwner } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Data kos", robots: { index: false, follow: false } };
@@ -15,7 +14,7 @@ const LINKS = [
 ] as const;
 
 export default async function DataLayout({ children }: { children: React.ReactNode }) {
-  if (!(await isOwner())) redirect("/admin/login");
+  await requireAdmin();
   return (
     <main className="wrap" style={{ padding: "26px 20px 60px" }}>
       <header style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14, flexWrap: "wrap" }}>

@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { backTo, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { billOverage, saveMeterReadings } from "@/lib/meter";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (form.get("op") === "bill") {
-      const { created } = await billOverage(period);
+      const { created } = await billOverage(period, await auditActor());
       return back(`billed=${created}`);
     }
     const entries = [...form.entries()]

@@ -98,7 +98,7 @@ export async function saveMeterReadings(period: Date, entries: { roomId: string;
  * month — never twice for the same month — due on next month's due day, and
  * puts a message with a pay button into the renter's chat.
  */
-export async function billOverage(period: Date) {
+export async function billOverage(period: Date, actor = "owner") {
   const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
   const due = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, settings.dueDayOfMonth));
   const rows = (await meterSheet(period)).filter((r) => r.overKwh > 0 && !r.billed);
@@ -119,7 +119,7 @@ export async function billOverage(period: Date) {
     );
   }
   if (rows.length) {
-    await prisma.auditLog.create({ data: { actor: "owner", action: "meter:bill", meta: { period: period.toISOString().slice(0, 7), count: rows.length } as never } });
+    await prisma.auditLog.create({ data: { actor, action: "meter:bill", meta: { period: period.toISOString().slice(0, 7), count: rows.length } as never } });
   }
   return { created: rows.length };
 }

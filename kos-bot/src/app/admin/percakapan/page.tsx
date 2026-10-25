@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { MessageRole } from "@prisma/client";
 import { env } from "@/env";
 import { prisma } from "@/lib/prisma";
-import { isOwner } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { guardReply } from "@/lib/chat/rules";
 import { stripLog } from "@/lib/chat/assistant";
 import { parseActions } from "@/lib/chat/actions";
@@ -18,7 +18,7 @@ const mask = (text: string) => guardReply(text, env().APP_URL).text;
  * assistant answers. Prospect chats disappear 24 hours after their last message.
  */
 export default async function ConversationsPage() {
-  if (!(await isOwner())) redirect("/admin/login");
+  await requireAdmin();
 
   const contacts = await prisma.contact.findMany({
     where: { conversations: { some: { messages: { some: {} } } } },

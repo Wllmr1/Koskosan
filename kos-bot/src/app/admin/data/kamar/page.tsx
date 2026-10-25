@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { rp } from "@/lib/money";
 import Notice from "@/components/admin/Notice";
 import RoomFields from "@/components/admin/RoomFields";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function RoomsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+  await requireAdmin();
   const q = await searchParams;
   const rooms = await prisma.room.findMany({
     orderBy: [{ sortOrder: "asc" }, { code: "asc" }],

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isOwner } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { meterSheet, monthLabel } from "@/lib/meter";
 import { rp } from "@/lib/money";
 import Notice from "@/components/admin/Notice";
@@ -17,7 +17,7 @@ const shift = (d: Date, n: number) => new Date(Date.UTC(d.getUTCFullYear(), d.ge
 
 /** Owner types each room's kWh for the month; rooms over the quota can then be billed in one click. */
 export default async function MeterPage({ searchParams }: { searchParams: Promise<{ bulan?: string; saved?: string; error?: string; billed?: string }> }) {
-  if (!(await isOwner())) redirect("/admin/login");
+  await requireAdmin();
   const q = await searchParams;
   const period = parseMonth(q.bulan);
   const rows = await meterSheet(period);

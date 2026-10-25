@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import Notice from "@/components/admin/Notice";
 import ListEditor from "@/components/admin/ListEditor";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function FaqPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+  await requireAdmin();
   const q = await searchParams;
   const rows = await prisma.faqEntry.findMany({ orderBy: { sortOrder: "asc" } });
   return (

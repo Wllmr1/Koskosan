@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { LeaseStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isOwner } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { rp } from "@/lib/money";
 import Notice from "@/components/admin/Notice";
 
@@ -10,7 +10,7 @@ export const metadata = { title: "Tambah penghuni", robots: { index: false, foll
 
 /** For renters who signed on paper before this system existed. */
 export default async function AddTenantPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  if (!(await isOwner())) redirect("/admin/login");
+  await requireAdmin();
   const { error } = await searchParams;
   const rooms = await prisma.room.findMany({
     where: { leases: { none: { status: LeaseStatus.ACTIVE } } },

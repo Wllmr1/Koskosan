@@ -484,3 +484,39 @@ model PasswordSetupToken {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 }
+
+/// Someone the owner allowed into the dashboard. The owner themself is not a
+/// row: they log in with OWNER_EMAIL + ADMIN_PASSWORD from the environment.
+model Admin {
+  id           String            @id @default(cuid())
+  email        String            @unique // stored lowercase
+  name         String
+  passwordHash String? // null until they use their setup link
+  disabled     Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  lastLoginAt  DateTime?
+  sessions     AdminSession[]
+  setupTokens  AdminSetupToken[]
+}
+
+/// One dashboard login. Lives in the database so it can time out after
+/// inactivity and be ended instantly (logout, admin disabled).
+model AdminSession {
+  id         String   @id @default(cuid())
+  adminId    String? // null = the owner
+  admin      Admin?   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([adminId])
+}
+
+model AdminSetupToken {
+  id        String    @id @default(cuid())
+  adminId   String
+  admin     Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}

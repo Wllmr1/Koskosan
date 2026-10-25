@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { backTo, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { removePhoto } from "@/lib/photos";
 import { firstIssue, parseRoomType } from "@/lib/admin-forms";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (type._count.rooms) return fail("Tipe ini masih punya kamar — pindahkan kamarnya dulu");
     for (const photo of await prisma.photo.findMany({ where: { roomTypeId: id }, select: { id: true } })) await removePhoto(photo.id);
     await prisma.roomType.delete({ where: { id } });
-    await prisma.auditLog.create({ data: { actor: "owner", action: "data:room-type:delete", meta: { type: type.slug } as never } });
+    await prisma.auditLog.create({ data: { actor: await auditActor(), action: "data:room-type:delete", meta: { type: type.slug } as never } });
     return back("saved=1");
   }
 
@@ -35,11 +35,11 @@ export async function POST(req: NextRequest) {
     if (id) {
       if (!(await prisma.roomType.findUnique({ where: { id }, select: { id: true } }))) return fail("Tipe tidak ditemukan");
       const type = await prisma.roomType.update({ where: { id }, data: parsed.data });
-      await prisma.auditLog.create({ data: { actor: "owner", action: "data:room-type:update", meta: { type: type.slug } as never } });
+      await prisma.auditLog.create({ data: { actor: await auditActor(), action: "data:room-type:update", meta: { type: type.slug } as never } });
       return back("saved=1");
     }
     const type = await prisma.roomType.create({ data: parsed.data });
-    await prisma.auditLog.create({ data: { actor: "owner", action: "data:room-type:create", meta: { type: type.slug } as never } });
+    await prisma.auditLog.create({ data: { actor: await auditActor(), action: "data:room-type:create", meta: { type: type.slug } as never } });
     return backTo(req, `/admin/data/tipe/${type.id}`, "saved=1");
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return fail("Nama atau alamat (slug) sudah dipakai tipe lain");

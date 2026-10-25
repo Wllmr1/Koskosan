@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Notice from "@/components/admin/Notice";
 import RoomTypeFields from "@/components/admin/RoomTypeFields";
 import PhotoManager from "@/components/admin/PhotoManager";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function EditRoomTypePage({
   params,
@@ -11,6 +12,7 @@ export default async function EditRoomTypePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
+  await requireAdmin();
   const { id } = await params;
   const q = await searchParams;
   const type = await prisma.roomType.findUnique({

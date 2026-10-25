@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import Notice from "@/components/admin/Notice";
 import { Lines, Num, Text } from "@/components/admin/Fields";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function PropertyPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+  await requireAdmin();
   const q = await searchParams;
   const s = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
   return (

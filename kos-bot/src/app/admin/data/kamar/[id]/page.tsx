@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Notice from "@/components/admin/Notice";
 import RoomFields from "@/components/admin/RoomFields";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function EditRoomPage({
   params,
@@ -10,6 +11,7 @@ export default async function EditRoomPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
+  await requireAdmin();
   const { id } = await params;
   const q = await searchParams;
   const room = await prisma.room.findUnique({ where: { id }, include: { roomType: true } });

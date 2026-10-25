@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { Prisma, RoomStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { backTo, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { firstIssue, parseRoom } from "@/lib/admin-forms";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return backTo(req, `/admin/data/kamar/${id}`, `error=${encodeURIComponent("Kamar ini punya riwayat kontrak — sembunyikan saja")}`);
     }
     await prisma.room.delete({ where: { id } });
-    await prisma.auditLog.create({ data: { actor: "owner", action: "data:room:delete", meta: { room: room.code } as never } });
+    await prisma.auditLog.create({ data: { actor: await auditActor(), action: "data:room:delete", meta: { room: room.code } as never } });
     return back("saved=1");
   }
 
@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
   try {
     if (op === "create") {
       const room = await prisma.room.create({ data });
-      await prisma.auditLog.create({ data: { actor: "owner", action: "data:room:create", meta: { room: room.code } as never } });
+      await prisma.auditLog.create({ data: { actor: await auditActor(), action: "data:room:create", meta: { room: room.code } as never } });
       return backTo(req, `/admin/data/kamar/${room.id}`, "saved=1");
     }
     if (op === "update") {
       const active = await prisma.lease.findFirst({ where: { roomId: id, status: "ACTIVE" }, select: { id: true } });
       if (active && data.status === RoomStatus.AVAILABLE) return fail("Kamar ini masih punya penghuni aktif");
       const room = await prisma.room.update({ where: { id }, data });
-      await prisma.auditLog.create({ data: { actor: "owner", action: "data:room:update", meta: { room: room.code } as never } });
+      await prisma.auditLog.create({ data: { actor: await auditActor(), action: "data:room:update", meta: { room: room.code } as never } });
       return back("saved=1");
     }
   } catch (e) {

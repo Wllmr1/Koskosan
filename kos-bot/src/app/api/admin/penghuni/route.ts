@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { backTo, escapeHtml, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, escapeHtml, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { firstIssue } from "@/lib/admin-forms";
 import { addExistingTenant, parseExistingTenant } from "@/lib/admin-tenants";
 import { createPasswordSetupLink } from "@/lib/password-setup";
@@ -14,7 +14,7 @@ const PDF_MAX_BYTES = 10 * 1024 * 1024;
 const fail = (req: NextRequest, message: string) => backTo(req, "/admin/penghuni/baru", `error=${encodeURIComponent(message)}`);
 
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       stored.push(ktpKey);
     }
 
-    const { tenant, room } = await addExistingTenant(parsed.data, contractKey);
+    const { tenant, room } = await addExistingTenant(parsed.data, contractKey, await auditActor());
     if (ktpKey) await prisma.tenant.update({ where: { id: tenant.id }, data: { ktpObjectKey: ktpKey } });
     const link = await createPasswordSetupLink(tenant.id);
 

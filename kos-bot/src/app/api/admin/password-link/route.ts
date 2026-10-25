@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { escapeHtml, ownerPostGuard } from "@/lib/admin-guard";
+import { escapeHtml, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { createPasswordSetupLink } from "@/lib/password-setup";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** Shows the link once. It is never stored in plain form, so it cannot be shown again. */
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const tenantId = String((await req.formData()).get("tenantId") ?? "");
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!tenant) return new NextResponse("not found", { status: 404 });
 
   const link = await createPasswordSetupLink(tenant.id);
-  await prisma.auditLog.create({ data: { actor: "owner", action: "password:link", tenantId: tenant.id } });
+  await prisma.auditLog.create({ data: { actor: await auditActor(), action: "password:link", tenantId: tenant.id } });
 
   const html = `<!doctype html><html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Link atur password</title>

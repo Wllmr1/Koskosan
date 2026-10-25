@@ -43,7 +43,7 @@ async function nextAccountCode(): Promise<string> {
  * active lease and marks the room occupied. No password yet — the owner sends
  * a setup link afterwards. Errors are written for the owner, in Indonesian.
  */
-export async function addExistingTenant(input: ExistingTenantInput, contractKey: string | null = null) {
+export async function addExistingTenant(input: ExistingTenantInput, contractKey: string | null = null, actor = "owner") {
   if (await prisma.tenant.findUnique({ where: { phoneE164: input.phone } })) {
     throw new Error("Nomor HP ini sudah terdaftar sebagai penghuni.");
   }
@@ -90,7 +90,7 @@ export async function addExistingTenant(input: ExistingTenantInput, contractKey:
   });
 
   await prisma.auditLog.create({
-    data: { actor: "owner", action: "tenant:add-existing", tenantId: result.tenant.id, meta: { room: room.code } as never },
+    data: { actor, action: "tenant:add-existing", tenantId: result.tenant.id, meta: { room: room.code } as never },
   });
   return { ...result, room };
 }
