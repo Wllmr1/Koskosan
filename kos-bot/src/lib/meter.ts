@@ -9,22 +9,51 @@ const MAX_KWH = 5_000;
 export const monthLabel = (period: Date) =>
   period.toLocaleDateString("id-ID", { month: "long", year: "numeric", timeZone: "UTC" });
 
-/** Every room with an active renter, with its reading for the month and whether it was billed. */
+const DAY_MS = 86_400_000;
+
+/** Days of [start, end) that a lease covers. */
+const daysCovered = (lease: { startDate: Date; endDate: Date }, start: Date, end: Date) =>
+  Math.max(0, Math.min(lease.endDate.getTime() + DAY_MS, end.getTime()) - Math.max(lease.startDate.getTime(), start.getTime()));
+
+/**
+ * Every room with a renter during the month, with its reading for the month
+ * and whether it was billed. A room has one row: the active lease in force
+ * that month (a renter booked in advance is not billed for the current
+ * renter's electricity). If two leases share the month, the one covering more
+ * of it wins; on a tie, the earlier one.
+ */
 export async function meterSheet(period: Date) {
+  const periodEnd = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1));
   const [leases, settings] = await Promise.all([
     prisma.lease.findMany({
-      where: { status: LeaseStatus.ACTIVE },
+      where: { status: LeaseStatus.ACTIVE, startDate: { lt: periodEnd }, endDate: { gte: period } },
       include: {
         room: { include: { utility: { where: { period } } } },
         tenant: { select: { id: true, fullName: true } },
-        invoices: { where: { kind: InvoiceKind.UTILITY_OVERAGE, period }, select: { code: true } },
       },
-      orderBy: { room: { sortOrder: "asc" } },
+      orderBy: [{ room: { sortOrder: "asc" } }, { room: { code: "asc" } }, { startDate: "asc" }],
     }),
     prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } }),
   ]);
 
-  return leases.map((lease) => {
+  const inForce = new Map<string, (typeof leases)[number]>();
+  for (const lease of leases) {
+    const held = inForce.get(lease.roomId);
+    if (!held || daysCovered(lease, period, periodEnd) > daysCovered(held, period, periodEnd)) inForce.set(lease.roomId, lease);
+  }
+  const chosen = [...inForce.values()];
+
+  // A room's month is billed once, whichever of its leases the bill went to.
+  const billedRooms = new Set(
+    (
+      await prisma.invoice.findMany({
+        where: { kind: InvoiceKind.UTILITY_OVERAGE, period, lease: { roomId: { in: chosen.map((l) => l.roomId) } } },
+        select: { lease: { select: { roomId: true } } },
+      })
+    ).map((i) => i.lease?.roomId)
+  );
+
+  return chosen.map((lease) => {
     const reading = lease.room.utility[0];
     const usedKwh = reading ? Number(reading.usedKwh) : null;
     const quotaKwh = reading?.quotaKwh ?? settings.electricQuota;
@@ -41,7 +70,7 @@ export async function meterSheet(period: Date) {
       rate,
       overKwh,
       extraCharge: Math.round(overKwh * rate),
-      billed: lease.invoices.length > 0,
+      billed: billedRooms.has(lease.roomId),
     };
   });
 }

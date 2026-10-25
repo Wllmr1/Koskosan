@@ -22,8 +22,13 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
     prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } }),
   ]);
 
-  const active = tenant.leases.find((l) => l.status === LeaseStatus.ACTIVE);
+  // The lease in force now; failing that, one booked in advance (earliest first).
+  const activeLeases = tenant.leases.filter((l) => l.status === LeaseStatus.ACTIVE);
+  const current = activeLeases.find((l) => l.startDate <= now);
+  const upcoming = activeLeases.filter((l) => l.startDate > now).at(-1);
+  const active = current ?? upcoming;
   const shown = active ?? tenant.leases[0] ?? null;
+  // Someone who has not moved in yet sees none of the room's meter data — it is the current renter's.
   const mine = { OR: [{ lease: { tenantId } }, { guestStay: { tenantId } }] };
 
   const [openInvoices, payments, guests, tickets, reading, overageBill] = await Promise.all([
@@ -44,12 +49,12 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
       take: 10,
     }),
     prisma.ticket.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: 10 }),
-    active
-      ? prisma.utilityPeriod.findUnique({ where: { roomId_period: { roomId: active.roomId, period: firstOfMonth(now) } } })
+    current
+      ? prisma.utilityPeriod.findUnique({ where: { roomId_period: { roomId: current.roomId, period: firstOfMonth(now) } } })
       : null,
-    active
+    current
       ? prisma.invoice.findFirst({
-          where: { leaseId: active.id, kind: InvoiceKind.UTILITY_OVERAGE, period: firstOfMonth(now) },
+          where: { leaseId: current.id, kind: InvoiceKind.UTILITY_OVERAGE, period: firstOfMonth(now) },
           select: { code: true },
         })
       : null,
@@ -91,6 +96,7 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
       deposit: shown.deposit,
       startDate: shown.startDate,
       endDate: shown.endDate,
+      notStarted: shown.status === LeaseStatus.ACTIVE && shown.startDate > now,
       daysLeft: Math.max(0, Math.ceil((shown.endDate.getTime() - now.getTime()) / DAY_MS)),
       noticeBy: new Date(shown.endDate.getTime() - 30 * DAY_MS),
       noticePassed: shown.endDate.getTime() - 30 * DAY_MS < now.getTime(),

@@ -31,11 +31,12 @@ export default async function AccountPage() {
           ) : (
             <>
               {ended && <p className="rent-notice">Kontrak ini sudah berakhir.</p>}
+              {lease.notStarted && <p className="rent-notice">Kamar siap ditempati mulai {niceDate(lease.startDate)}.</p>}
               <dl className="facts">
                 <div><dt>Kamar</dt><dd><a href={`/kamar/${encodeURIComponent(lease.roomCode)}`}>{lease.roomCode}</a>, {lease.roomType}</dd></div>
                 <div><dt>Sewa</dt><dd>{rp(lease.monthlyRent)} per bulan, {lease.plan === "YEARLY" ? "bayar tahunan" : "bayar bulanan"}</dd></div>
                 <div><dt>Masa kontrak</dt><dd>{niceDate(lease.startDate)} sampai {niceDate(lease.endDate)}</dd></div>
-                {!ended && <div><dt>Sisa kontrak</dt><dd>{lease.daysLeft} hari</dd></div>}
+                {!ended && !lease.notStarted && <div><dt>Sisa kontrak</dt><dd>{lease.daysLeft} hari</dd></div>}
                 <div><dt>Deposit</dt><dd>{rp(lease.deposit)}</dd></div>
                 {!ended && (
                   <div>
@@ -83,6 +84,12 @@ export default async function AccountPage() {
               </div>
             ))}
           </div>
+        </Section>
+      )}
+
+      {!a.electricity && lease?.notStarted && (
+        <Section title="Listrik">
+          <p className="muted small">Meteran listrik kamar Anda mulai dicatat setelah pindah masuk pada {niceDate(lease.startDate)}.</p>
         </Section>
       )}
 

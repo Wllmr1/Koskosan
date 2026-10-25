@@ -87,10 +87,9 @@ export async function purgeExpiredDocuments() {
  * Daily. Raises next month's rent invoice and nudges anyone who is late.
  * Runs outside the 24-hour window, so it uses approved templates.
  */
-export async function runRentCycle() {
+export async function runRentCycle(today = new Date()) {
   const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
-  const today = new Date();
-  const created = await issueUpcomingRent(settings.dueDayOfMonth);
+  const created = await issueUpcomingRent(settings.dueDayOfMonth, today);
   const reminded = await remindUnpaid(settings.dueDayOfMonth, today);
   await prisma.auditLog.create({
     data: { actor: "job:rent", action: "rent-cycle", meta: { created, reminded } as never },
@@ -98,9 +97,12 @@ export async function runRentCycle() {
   return { created, reminded };
 }
 
-/** Creates the next monthly invoice a week before it is due. */
-async function issueUpcomingRent(dueDay: number): Promise<number> {
-  const now = new Date();
+/**
+ * Creates the next monthly invoice a week before it is due. A lease booked in
+ * advance (starting after the due date) is not billed yet: the room's current
+ * renter is still the one living there.
+ */
+async function issueUpcomingRent(dueDay: number, now: Date): Promise<number> {
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), dueDay));
   if (target < now) target.setUTCMonth(target.getUTCMonth() + 1);
   const daysAway = (target.getTime() - now.getTime()) / 86_400_000;
@@ -108,7 +110,7 @@ async function issueUpcomingRent(dueDay: number): Promise<number> {
 
   const period = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), 1));
   const leases = await prisma.lease.findMany({
-    where: { status: "ACTIVE", plan: "MONTHLY", endDate: { gte: target } },
+    where: { status: "ACTIVE", plan: "MONTHLY", startDate: { lte: target }, endDate: { gte: target } },
     include: { room: true, tenant: true },
   });
 
@@ -147,14 +149,14 @@ async function issueUpcomingRent(dueDay: number): Promise<number> {
   return created;
 }
 
-/** Nudges overdue invoices once every three days, never more. */
+/** Nudges overdue invoices once every three days, never more. Never a renter who has not moved in yet. */
 async function remindUnpaid(dueDay: number, today: Date): Promise<number> {
   if (!whatsappEnabled()) return 0;
   const overdue = await prisma.invoice.findMany({
     where: {
       status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL] },
       dueDate: { lt: today },
-      lease: { status: "ACTIVE" },
+      lease: { status: "ACTIVE", startDate: { lte: today } },
     },
     include: { lease: { include: { tenant: true, room: true } } },
     take: 50,
