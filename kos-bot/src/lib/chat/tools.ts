@@ -111,8 +111,10 @@ export const TOOLS: ToolDef[] = [
       const rooms = await prisma.room.findMany({
         where: {
           hidden: false,
-          ...(input.type ? { roomType: { name: { equals: str(input.type, 40), mode: "insensitive" as const } } } : {}),
-          ...(maxPrice && Number.isFinite(maxPrice) ? { roomType: { monthlyPrice: { lte: maxPrice } } } : {}),
+          roomType: {
+            ...(input.type ? { name: { equals: str(input.type, 40), mode: "insensitive" as const } } : {}),
+            ...(maxPrice && Number.isFinite(maxPrice) ? { monthlyPrice: { lte: maxPrice } } : {}),
+          },
           ...(onlyAvailable ? { status: RoomStatus.AVAILABLE } : {}),
         },
         orderBy: [{ roomType: { monthlyPrice: "asc" } }, { sortOrder: "asc" }],
