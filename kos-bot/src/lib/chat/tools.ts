@@ -18,6 +18,7 @@ import { notifyOwner } from "@/lib/notify";
 import { startHandoff, type ChatCtx } from "./context";
 import { addAction } from "./actions";
 import { ApplicationError, createApplication } from "@/lib/application";
+import { CONTRACT_MONTHS, contractLabel, contractLengthsText, parseContractMonths } from "@/lib/contract-terms";
 
 export type ToolDef = {
   name: string;
@@ -193,7 +194,7 @@ export const TOOLS: ToolDef[] = [
             topic,
             room_prices: rooms.map((r) => `${r.name}: ${rp(r.monthlyPrice)} per bulan`),
             deposit: `${s.depositMonths}× sewa bulanan, dikembalikan maksimal ${s.depositReturnDays} hari setelah keluar`,
-            yearly_deal: `Bayar tahunan: ${s.yearlyMonths} bulan untuk 12 bulan sewa`,
+            contract_lengths: `${contractLengthsText()}; dibayar per bulan`,
             electricity: `Kuota ${s.electricQuota} kWh/bulan termasuk. Kelebihan ${rp(s.electricRate)}/kWh.`,
             water_and_wifi: s.utilitiesNote,
             guest_fee: `${rp(s.guestFeePerNight)} per malam per tamu, maksimal ${s.maxGuestNights} malam berturut-turut`,
@@ -244,18 +245,23 @@ export const TOOLS: ToolDef[] = [
       type: "object",
       properties: {
         room_code: { type: "string", description: "Exact room code from search_rooms, e.g. B-206" },
-        plan: { type: "string", enum: ["bulanan", "tahunan"], description: "Monthly or yearly payment" },
+        months: {
+          type: "integer",
+          enum: [...CONTRACT_MONTHS],
+          description: "Contract length in months: 6, 12 or 24. Ask the person if they haven't said.",
+        },
       },
-      required: ["room_code"],
+      required: ["room_code", "months"],
     },
     async run(input, ctx) {
       if (await overLimit("apply", ctx.contactId, 5, 3_600_000)) {
         throw new Error("Too many application links already sent to this person in the last hour.");
       }
-      const plan = str(input.plan, 10) === "tahunan" ? LeasePlan.YEARLY : LeasePlan.MONTHLY;
+      const months = parseContractMonths(input.months);
+      if (!months) throw new Error("Ask the person how long they want to rent: contract length must be 6, 12 or 24 months.");
       let created: Awaited<ReturnType<typeof createApplication>>;
       try {
-        created = await createApplication({ contactId: ctx.contactId, roomCode: str(input.room_code, 20), plan });
+        created = await createApplication({ contactId: ctx.contactId, roomCode: str(input.room_code, 20), months });
       } catch (e) {
         if (e instanceof ApplicationError && e.code === "not_found") {
           throw new Error(`${e.message} Call search_rooms and offer a real one.`);
@@ -266,12 +272,12 @@ export const TOOLS: ToolDef[] = [
       const { reference, token: raw, room } = created;
 
       addAction(ctx, "Buka formulir", `/apply/${raw}`);
-      await audit(ctx, "tool:start_application", { reference, room: room.code, plan });
+      await audit(ctx, "tool:start_application", { reference, room: room.code, months });
 
       return {
         reference,
         room: room.code,
-        plan: plan === LeasePlan.YEARLY ? "tahunan" : "bulanan",
+        contract: contractLabel(months),
         link_sent: true,
         steps: "data diri, baca kontrak, tanda tangan digital, lalu pembayaran",
         note: "A 'Buka formulir' button is attached to your reply. Say which room and price it is for and that the link works for 48 hours. Never ask for KTP, ID number or date of birth in the chat.",

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { isoDateOrNull, planOrNull, queryString, resolveKamarPath } from "@/lib/room-types";
+import { isoDateOrNull, queryString, resolveKamarPath } from "@/lib/room-types";
 import { makeRoom } from "../helpers";
 
 afterAll(() => prisma.$disconnect());
@@ -29,9 +29,9 @@ describe("resolveKamarPath", () => {
 
   it("keeps the query string when redirecting an old room code", async () => {
     const room = await makeRoom();
-    const q = queryString({ masuk: "2027-01-15", lama: "tahunan", none: undefined });
-    expect(q).toBe("?masuk=2027-01-15&lama=tahunan");
-    expect(await resolveKamarPath(room.code, q)).toEqual({ kind: "redirect", to: `/kamar/${room.roomType.slug}?masuk=2027-01-15&lama=tahunan` });
+    const q = queryString({ masuk: "2027-01-15", lama: "12", none: undefined });
+    expect(q).toBe("?masuk=2027-01-15&lama=12");
+    expect(await resolveKamarPath(room.code, q)).toEqual({ kind: "redirect", to: `/kamar/${room.roomType.slug}?masuk=2027-01-15&lama=12` });
     expect(queryString({})).toBe("");
   });
 
@@ -43,11 +43,9 @@ describe("resolveKamarPath", () => {
 });
 
 describe("booking bar params", () => {
-  it("accepts real dates and known plans only", () => {
+  it("accepts real dates only", () => {
     expect(isoDateOrNull("2026-12-01")).toBe("2026-12-01");
     expect(isoDateOrNull("2026-02-30")).toBeNull();
     expect(isoDateOrNull("besok")).toBeNull();
-    expect(planOrNull("tahunan")).toBe("tahunan");
-    expect(planOrNull("12")).toBeNull();
   });
 });

@@ -50,21 +50,21 @@ describe("createApplicationForType", () => {
     const { slug, rooms } = await typeWith([{}, {}]);
     const moveIn = date(tomorrow());
 
-    const a = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn });
+    const a = await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn });
     expect(a.room.id).toBe(rooms[0].id);
 
     await prisma.application.update({
       where: { tokenHash: sha256(a.token) },
       data: { status: ApplicationStatus.DETAILS_SUBMITTED },
     });
-    const b = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn });
+    const b = await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn });
     expect(b.room.id).toBe(rooms[1].id);
 
     await prisma.application.update({
       where: { tokenHash: sha256(b.token) },
       data: { status: ApplicationStatus.DETAILS_SUBMITTED },
     });
-    await expect(createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn })).rejects.toMatchObject({
+    await expect(createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn })).rejects.toMatchObject({
       code: "unavailable",
     });
   });
@@ -72,8 +72,8 @@ describe("createApplicationForType", () => {
   it("two starts for the last free room: the first to submit keeps it, the second is moved to another room or told it is full", async () => {
     const { slug, rooms } = await typeWith([{}, {}]);
     const moveIn = date(tomorrow());
-    const first = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn });
-    const second = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn });
+    const first = await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn });
+    const second = await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn });
     expect(first.room.id).toBe(rooms[0].id);
     expect(second.room.id).toBe(rooms[0].id);
 
@@ -86,8 +86,8 @@ describe("createApplicationForType", () => {
 
     // A third person who started earlier now finds the type full.
     const { slug: slug2 } = await typeWith([{}]);
-    const a = await createApplicationForType({ contactId: null, typeSlug: slug2, plan: "MONTHLY", moveIn });
-    const b = await createApplicationForType({ contactId: null, typeSlug: slug2, plan: "MONTHLY", moveIn });
+    const a = await createApplicationForType({ contactId: null, typeSlug: slug2, months: 12, moveIn });
+    const b = await createApplicationForType({ contactId: null, typeSlug: slug2, months: 12, moveIn });
     expect((await details(a.token, tomorrow())).status).toBe(200);
     const typeName = (await prisma.roomType.findUniqueOrThrow({ where: { id: a.room.roomTypeId } })).name;
     const full = await details(b.token, tomorrow());
@@ -98,10 +98,10 @@ describe("createApplicationForType", () => {
   it("books ahead on an occupied room from the date it frees up", async () => {
     const { slug } = await typeWith([{ status: RoomStatus.OCCUPIED, availableOn: date("2027-01-15") }]);
     await expect(
-      createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date("2027-01-10") })
+      createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn: date("2027-01-10") })
     ).rejects.toMatchObject({ code: "unavailable" });
 
-    const out = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "YEARLY", moveIn: date("2027-01-15") });
+    const out = await createApplicationForType({ contactId: null, typeSlug: slug, months: 24, moveIn: date("2027-01-15") });
     const app = await prisma.application.findUniqueOrThrow({ where: { tokenHash: sha256(out.token) } });
     expect(app.moveInDate?.toISOString()).toBe("2027-01-15T00:00:00.000Z");
   });
@@ -113,7 +113,7 @@ describe("createApplicationForType", () => {
       { status: RoomStatus.OCCUPIED, availableOn: date("2027-01-20") },
     ]);
     const start = async (moveIn: string) =>
-      (await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date(moveIn) })).room.id;
+      (await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn: date(moveIn) })).room.id;
     expect(await start("2027-01-15")).toBe(rooms[1].id);
     expect(await start("2027-01-25")).toBe(rooms[2].id);
     expect(await start("2027-01-05")).toBe(rooms[0].id);
@@ -122,20 +122,20 @@ describe("createApplicationForType", () => {
   it("for a move-in today, takes a room free now first", async () => {
     const today = new Date().toISOString().slice(0, 10);
     const { slug, rooms } = await typeWith([{ status: RoomStatus.OCCUPIED, availableOn: date("2026-01-01") }, {}]);
-    const out = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date(today) });
+    const out = await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn: date(today) });
     expect(out.room.id).toBe(rooms[1].id);
   });
 
   it("does not offer a room someone else is in the middle of booking", async () => {
     const { slug } = await typeWith([{ status: RoomStatus.BOOKED }]);
     await expect(
-      createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date(tomorrow()) })
+      createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn: date(tomorrow()) })
     ).rejects.toMatchObject({ code: "unavailable" });
   });
 
   it("rejects an unknown type", async () => {
     await expect(
-      createApplicationForType({ contactId: null, typeSlug: `nope-${uniq()}`, plan: "MONTHLY", moveIn: date(tomorrow()) })
+      createApplicationForType({ contactId: null, typeSlug: `nope-${uniq()}`, months: 12, moveIn: date(tomorrow()) })
     ).rejects.toMatchObject({ code: "not_found" });
   });
 });
@@ -156,17 +156,25 @@ describe("POST /api/apply/start with a type", () => {
 
   it("redirects to the secure form with the chosen date saved", async () => {
     const { slug } = await typeWith([{ status: RoomStatus.OCCUPIED, availableOn: date("2027-01-15") }]);
-    const res = await post(`type=${slug}&moveIn=2027-01-15&plan=bulanan`);
+    const res = await post(`type=${slug}&moveIn=2027-01-15&months=6`);
     expect(res.status).toBe(303);
     const path = new URL(res.headers.get("location")!).pathname;
     expect(path).toMatch(/^\/apply\//);
     const app = await prisma.application.findUniqueOrThrow({ where: { tokenHash: sha256(path.split("/").pop()!) } });
     expect(app.moveInDate?.toISOString()).toBe("2027-01-15T00:00:00.000Z");
+    expect(app.plan).toBe("MONTHLY");
+    expect(app.termMonths).toBe(6);
+  });
+
+  it("asks for a contract length first", async () => {
+    const { slug } = await typeWith([{}]);
+    const res = await post(`type=${slug}&moveIn=${tomorrow()}`);
+    expect(new URL(res.headers.get("location")!).pathname + new URL(res.headers.get("location")!).search).toBe(`/kamar/${slug}?sewa=lama`);
   });
 
   it("sends the visitor back to the type page when everything is taken", async () => {
     const { slug } = await typeWith([{ status: RoomStatus.OCCUPIED, availableOn: date("2027-01-15") }]);
-    const res = await post(`type=${slug}&moveIn=2027-01-10&plan=bulanan`);
+    const res = await post(`type=${slug}&moveIn=2027-01-10&months=6`);
     expect(res.status).toBe(303);
     expect(new URL(res.headers.get("location")!).pathname + new URL(res.headers.get("location")!).search).toBe(
       `/kamar/${slug}?sewa=penuh`
@@ -177,7 +185,7 @@ describe("POST /api/apply/start with a type", () => {
 describe("POST /api/apply (details) move-in date", () => {
   it("refuses a date before an occupied room frees up", async () => {
     const { slug } = await typeWith([{ status: RoomStatus.OCCUPIED, availableOn: date("2027-01-15") }]);
-    const out = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn: date("2027-01-15") });
+    const out = await createApplicationForType({ contactId: null, typeSlug: slug, months: 12, moveIn: date("2027-01-15") });
 
     const form = new FormData();
     const fields: Record<string, string> = {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { niceDate } from "@/lib/money";
-import { isoDateOrNull, listRoomTypes, planOrNull, type TypeCard } from "@/lib/room-types";
+import { isoDateOrNull, listRoomTypes, type TypeCard } from "@/lib/room-types";
+import { contractLabel, parseContractMonths } from "@/lib/contract-terms";
 import { NoData } from "@/components/site/ui";
 import TypeBlock from "@/components/site/TypeBlock";
 
@@ -36,16 +37,16 @@ export default async function RoomsPage({
   ]);
   if (!settings) return <NoData />;
 
-  // Booking bar: ?tipe=<slug>&masuk=YYYY-MM-DD&lama=bulanan|tahunan. Invalid parts are ignored.
+  // Booking bar: ?tipe=<slug>&masuk=YYYY-MM-DD&lama=6|12|24. Invalid parts are ignored.
   const searched = types.find((t) => t.slug === one(sp.tipe)) ?? null;
   const masuk = isoDateOrNull(one(sp.masuk));
-  const lama = planOrNull(one(sp.lama));
+  const lama = parseContractMonths(one(sp.lama));
   const f = FILTERS.find((x) => x.key === one(sp.f))?.key ?? "all";
   const shown = searched ? [searched] : f === "all" ? types : types.filter(KEEP[f]);
 
   const carry = new URLSearchParams();
   if (masuk) carry.set("masuk", masuk);
-  if (lama) carry.set("lama", lama);
+  if (lama) carry.set("lama", String(lama));
   const tail = carry.size ? `?${carry}` : "";
 
   const fits = searched
@@ -68,7 +69,7 @@ export default async function RoomsPage({
           <span>
             Hasil untuk <b>{searched.name}</b>
             {masuk && <> · masuk <b>{niceDate(masuk)}</b></>}
-            {lama && <> · <b>{lama === "tahunan" ? "Tahunan" : "Bulanan"}</b></>}
+            {lama && <> · <b>{contractLabel(lama)}</b></>}
           </span>
           {masuk && (
             <span style={{ color: fits ? "var(--ok)" : "var(--warn)" }}>

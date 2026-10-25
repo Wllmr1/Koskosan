@@ -3,7 +3,8 @@ import { prisma } from "./prisma";
 import { log } from "./logger";
 import { addMonths, niceDate, rp } from "./money";
 import { notifyOwner } from "./notify";
-import { termMonths } from "./application";
+import { applicationMonths } from "./application";
+import { contractLabel } from "./contract-terms";
 import { promoteToMember } from "./chat/context";
 import { decrypt } from "./crypto";
 import { deliverToContact, deliverToRenter } from "./chat/deliver";
@@ -135,7 +136,7 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
   const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
   const start = app.moveInDate ?? new Date();
   // The lease follows the contract as signed, even if the owner changed prices since.
-  const months = app.signedTermMonths ?? termMonths(app.plan, settings.minMonths);
+  const months = app.signedTermMonths ?? applicationMonths(app, settings.minMonths);
   const monthlyRent = app.signedMonthlyRent ?? app.room.roomType.monthlyPrice;
   const deposit = app.signedDeposit ?? app.room.roomType.monthlyPrice * settings.depositMonths;
 
@@ -210,7 +211,7 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
       `Penyewa baru: ${app.fullName}`,
       `Akun: ${result.tenant.accountCode}`,
       `Kamar: ${app.room.code} (${app.room.roomType.name})`,
-      `Skema: ${app.plan === "YEARLY" ? "tahunan" : "bulanan"}`,
+      `Kontrak: ${contractLabel(months)}, bayar ${app.plan === "YEARLY" ? "tahunan" : "bulanan"}`,
       `Mulai: ${niceDate(start)}`,
       `Dibayar: ${rp(amount)} (${invoiceCode})`,
       `HP: ${app.phoneE164}`,

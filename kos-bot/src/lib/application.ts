@@ -4,6 +4,7 @@ import { newToken, sha256 } from "./crypto";
 import { addMonths } from "./money";
 import { deleteObject } from "./storage";
 import type { ContractData } from "./contract";
+import { contractLabel, type ContractMonths } from "./contract-terms";
 
 export const APPLICATION_TTL_MS = 48 * 3_600_000;
 
@@ -22,7 +23,7 @@ export class ApplicationError extends Error {
  * the same rules: the room must exist, be visible and be available. Returns
  * the raw form token (only its hash is stored).
  */
-export async function createApplication(opts: { contactId: string | null; roomCode: string; plan: LeasePlan }) {
+export async function createApplication(opts: { contactId: string | null; roomCode: string; months: ContractMonths }) {
   const code = opts.roomCode.trim().toUpperCase().slice(0, 20);
   const room = await prisma.room.findUnique({ where: { code } });
   if (!room || room.hidden) throw new ApplicationError("not_found", `No room called ${code}.`);
@@ -39,7 +40,8 @@ export async function createApplication(opts: { contactId: string | null; roomCo
       tokenHash: hash,
       contactId: opts.contactId,
       roomId: room.id,
-      plan: opts.plan,
+      plan: LeasePlan.MONTHLY,
+      termMonths: opts.months,
       expiresAt: new Date(Date.now() + APPLICATION_TTL_MS),
     },
   });
@@ -103,7 +105,7 @@ export async function firstOpenRoomOfType(type: { slug: string } | { id: string 
 export async function createApplicationForType(opts: {
   contactId: string | null;
   typeSlug: string;
-  plan: LeasePlan;
+  months: ContractMonths;
   moveIn: Date;
 }) {
   const known = await prisma.room.count({ where: { hidden: false, roomType: { slug: opts.typeSlug } } });
@@ -120,7 +122,8 @@ export async function createApplicationForType(opts: {
       tokenHash: hash,
       contactId: opts.contactId,
       roomId: room.id,
-      plan: opts.plan,
+      plan: LeasePlan.MONTHLY,
+      termMonths: opts.months,
       moveInDate: opts.moveIn,
       expiresAt: new Date(Date.now() + APPLICATION_TTL_MS),
     },
@@ -159,8 +162,14 @@ export async function roomHeldByAnother(applicationId: string | null, roomId: st
   return !!other;
 }
 
+/** Contract length of an older application that has no chosen length: yearly = 12, monthly = the minimum. */
 export function termMonths(plan: LeasePlan, minMonths: number) {
   return plan === LeasePlan.YEARLY ? 12 : minMonths;
+}
+
+/** The contract length of an application, in months. */
+export function applicationMonths(app: { termMonths: number | null; plan: LeasePlan }, minMonths: number) {
+  return app.termMonths ?? termMonths(app.plan, minMonths);
 }
 
 /** First payment = rent for the paid period + the deposit (depositMonths × monthly rent). */
@@ -169,8 +178,8 @@ export function onboardingAmount(monthlyPrice: number, plan: LeasePlan, yearlyMo
   return monthlyPrice * rentMonths + monthlyPrice * depositMonths;
 }
 
-export function termLabel(plan: LeasePlan, minMonths: number) {
-  return plan === LeasePlan.YEARLY ? "12 bulan" : `${minMonths} bulan (minimum)`;
+export function termLabel(app: { termMonths: number | null; plan: LeasePlan }, minMonths: number) {
+  return contractLabel(applicationMonths(app, minMonths));
 }
 
 /** Everything the contract needs, assembled from the database. */
@@ -182,7 +191,7 @@ export async function buildContractData(applicationId: string, idNumber: string)
   const s = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
 
   const start = app.moveInDate ?? new Date();
-  const months = termMonths(app.plan, s.minMonths);
+  const months = applicationMonths(app, s.minMonths);
 
   return {
     propertyName: s.name,
@@ -199,7 +208,7 @@ export async function buildContractData(applicationId: string, idNumber: string)
     deposit: app.room.roomType.monthlyPrice * s.depositMonths,
     startDate: start,
     endDate: addMonths(start, months),
-    termLabel: termLabel(app.plan, s.minMonths),
+    termLabel: termLabel(app, s.minMonths),
     lateFeePerDay: s.lateFeePerDay,
     lateFeeMax: s.lateFeeMax,
     dueDay: s.dueDayOfMonth,

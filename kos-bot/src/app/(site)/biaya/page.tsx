@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { rp } from "@/lib/money";
 import { roman } from "@/lib/site";
+import { contractLengthsText } from "@/lib/contract-terms";
 import { listRoomTypes } from "@/lib/room-types";
 import FirstPaymentCalc from "@/components/site/FirstPaymentCalc";
 import { NoData } from "@/components/site/ui";
@@ -23,7 +24,7 @@ export default async function FeesPage() {
   if (!s) return <NoData />;
 
   const rows: [string, string][] = [
-    ["Sewa", `Lihat harga tiap tipe di halaman Kamar. Kontrak bulanan minimal ${s.minMonths} bulan, atau tahunan: bayar ${s.yearlyMonths} bulan untuk 12 bulan sewa.`],
+    ["Sewa", `Lihat harga tiap tipe di halaman Kamar. Kontrak ${contractLengthsText()}, dibayar per bulan.`],
     ["Deposit", `${s.depositMonths}× sewa bulanan, dikembalikan maksimal ${s.depositReturnDays} hari setelah keluar`],
     ["Listrik", `Kuota ${s.electricQuota} kWh/bulan termasuk. Kelebihan ${rp(s.electricRate)}/kWh.`],
     ["Air dan wifi", s.utilitiesNote],

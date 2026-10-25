@@ -8,7 +8,7 @@ type Props = {
   reference: string;
   moveIn: { min: string; value?: string };
   room: { type: string; size: string; price: string };
-  plan: string;
+  contract: string;
   startStep: number;
   summary: { rentLabel: string; rentAmount: string; depositAmount: string; total: string };
   clauses: { heading: string; body: string }[];
@@ -171,7 +171,7 @@ export default function ApplyFlow(props: Props) {
   return (
     <div>
       <div className="flow-head">
-        <div className="lbl">{props.propertyName} · {props.plan} · {props.reference}</div>
+        <div className="lbl">{props.propertyName} · {props.contract} · {props.reference}</div>
         <h1>Sewa kamar</h1>
         <p>{props.room.type} · {props.room.size} · {props.room.price} per bulan</p>
       </div>

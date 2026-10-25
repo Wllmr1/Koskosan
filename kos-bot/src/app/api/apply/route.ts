@@ -9,7 +9,7 @@ import { hashPassword, passwordProblem } from "@/lib/password";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { clientIp } from "@/lib/http";
-import { buildContractData, findApplicationByToken, firstOpenRoomOfType, onboardingAmount, roomOpenOn, termMonths } from "@/lib/application";
+import { applicationMonths, buildContractData, findApplicationByToken, firstOpenRoomOfType, onboardingAmount, roomOpenOn } from "@/lib/application";
 import { buildContractPdf, contractHash } from "@/lib/contract";
 import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
 
@@ -224,11 +224,12 @@ export async function PUT(req: NextRequest) {
       // The terms as signed: the lease is built from these, not from prices on payment day.
       signedMonthlyRent: contractData.monthlyRent,
       signedDeposit: contractData.deposit,
-      signedTermMonths: termMonths(app.plan, settings.minMonths),
+      signedTermMonths: applicationMonths(app, settings.minMonths),
       status: ApplicationStatus.SIGNED,
     },
   });
 
+  // Old yearly applications pay several months up front; every new one pays the first month.
   const rentMonths = app.plan === "YEARLY" ? settings.yearlyMonths : 1;
   const invoice = await createLocalInvoice({
     kind: InvoiceKind.ONBOARDING,

@@ -108,7 +108,3 @@ export function isoDateOrNull(value: unknown): string | null {
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value ? value : null;
 }
-
-export function planOrNull(value: unknown): "bulanan" | "tahunan" | null {
-  return value === "bulanan" || value === "tahunan" ? value : null;
-}

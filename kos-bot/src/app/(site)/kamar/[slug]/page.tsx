@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { niceDate, rp } from "@/lib/money";
-import { onboardingAmount } from "@/lib/application";
-import { isoDateOrNull, notBeforeToday, planOrNull, queryString, resolveKamarPath } from "@/lib/room-types";
+import { CONTRACT_MONTHS, contractLabel, parseContractMonths } from "@/lib/contract-terms";
+import { isoDateOrNull, notBeforeToday, queryString, resolveKamarPath } from "@/lib/room-types";
 import OpenChatButton from "@/components/OpenChatButton";
 import { TypeFacts, TypeGallery } from "@/components/site/TypeBlock";
 
@@ -17,6 +17,7 @@ const RENT_NOTICE: Record<string, string> = {
   penuh: "Maaf, kamar tipe ini baru saja diambil orang lain. Pilih tanggal lain, tipe lain, atau tanya lewat chat.",
   batas: "Terlalu banyak pendaftaran dari jaringan ini dalam satu jam. Coba lagi nanti, atau tanya lewat chat.",
   "tidak-ada": "Tipe kamar ini sudah tidak tersedia untuk disewa.",
+  lama: "Pilih lama kontrak dulu.",
 };
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -43,24 +44,8 @@ export default async function RoomTypePage({
   const earliest = free > 0 ? today : nextFree ? day(nextFree) : null;
   const asked = isoDateOrNull(one(sp.masuk));
   const moveIn = earliest && asked && asked >= earliest ? asked : earliest;
-  const chosenPlan = planOrNull(one(sp.lama)) ?? "bulanan";
+  const chosen = parseContractMonths(one(sp.lama));
   const deposit = type.monthlyPrice * settings.depositMonths;
-  const plans = [
-    {
-      value: "bulanan",
-      label: "Bulanan",
-      note: `Kontrak minimal ${settings.minMonths} bulan, bayar tiap tanggal ${settings.dueDayOfMonth}.`,
-      rent: type.monthlyPrice,
-      total: onboardingAmount(type.monthlyPrice, "MONTHLY", settings.yearlyMonths, settings.depositMonths),
-    },
-    {
-      value: "tahunan",
-      label: "Tahunan",
-      note: `Bayar ${settings.yearlyMonths} bulan untuk 12 bulan sewa.`,
-      rent: type.monthlyPrice * settings.yearlyMonths,
-      total: onboardingAmount(type.monthlyPrice, "YEARLY", settings.yearlyMonths, settings.depositMonths),
-    },
-  ];
   const chat = `Saya tertarik kamar ${type.name}`;
 
   return (
@@ -87,26 +72,29 @@ export default async function RoomTypePage({
                     Kamar {type.name} berikutnya kosong mulai {niceDate(nextFree)}. Anda tetap bisa memesan untuk tanggal itu.
                   </p>
                 )}
+                <fieldset className="opts" style={{ border: 0, padding: 0, margin: 0 }}>
+                  <legend className="lbl" style={{ marginBottom: 8, padding: 0 }}>Lama kontrak</legend>
+                  {CONTRACT_MONTHS.map((m, n) => (
+                    <label key={m}>
+                      <input type="radio" name="months" value={m} defaultChecked={m === chosen} required={n === 0} />
+                      <span><strong>{contractLabel(m)}</strong></span>
+                    </label>
+                  ))}
+                </fieldset>
                 <div className="form">
                   <label>
                     <span className="lbl">Tanggal masuk</span>
                     <input type="date" name="moveIn" min={earliest} defaultValue={moveIn} required />
                   </label>
                 </div>
-                <fieldset className="opts" style={{ border: 0, padding: 0, margin: 0 }}>
-                  <legend className="lbl" style={{ marginBottom: 8, padding: 0 }}>Cara bayar</legend>
-                  {plans.map((p) => (
-                    <label key={p.value}>
-                      <input type="radio" name="plan" value={p.value} defaultChecked={p.value === chosenPlan} />
-                      <span>
-                        <strong>{p.label}</strong>
-                        <small>{p.note}</small>
-                        <small>Sewa {rp(p.rent)} + deposit {rp(deposit)}</small>
-                        <b>Pembayaran pertama {rp(p.total)}</b>
-                      </span>
-                    </label>
-                  ))}
-                </fieldset>
+                <div className="sum" aria-live="polite">
+                  <div><span>Sewa bulan pertama</span><span>{rp(type.monthlyPrice)}</span></div>
+                  <div><span>Deposit ({settings.depositMonths}× sewa)</span><span>{rp(deposit)}</span></div>
+                  <div className="tot"><span>Pembayaran pertama</span><span>{rp(type.monthlyPrice + deposit)}</span></div>
+                </div>
+                <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14 }}>
+                  Setelah itu {rp(type.monthlyPrice)} per bulan sampai kontrak selesai, jatuh tempo tanggal {settings.dueDayOfMonth}.
+                </p>
                 <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14 }}>
                   Nomor kamar dipilihkan dari kamar {type.name} yang kosong. Termasuk kuota listrik {settings.electricQuota} kWh/bulan.
                 </p>

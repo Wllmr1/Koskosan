@@ -1,6 +1,6 @@
 import { ApplicationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildContractData, findApplicationByToken, onboardingAmount } from "@/lib/application";
+import { buildContractData, findApplicationByToken, onboardingAmount, termLabel } from "@/lib/application";
 import { contractClauses, contractHash } from "@/lib/contract";
 import { decrypt } from "@/lib/crypto";
 import { rp } from "@/lib/money";
@@ -56,7 +56,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
               : new Date().toISOString().slice(0, 10),
           value: app.moveInDate ? app.moveInDate.toISOString().slice(0, 10) : undefined,
         }}
-        plan={app.plan === "YEARLY" ? "tahunan" : "bulanan"}
+        contract={`Kontrak ${termLabel(app, settings.minMonths)}`}
         startStep={clauses.length ? 2 : 1}
         contractHash={contract ? contractHash(contract) : ""}
         summary={{

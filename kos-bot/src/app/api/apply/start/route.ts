@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LeasePlan } from "@prisma/client";
 import { ApplicationError, createApplication, createApplicationForType } from "@/lib/application";
 import { resolveWebContext } from "@/lib/chat/context";
+import { parseContractMonths } from "@/lib/contract-terms";
 import { clientIp, sameOrigin } from "@/lib/http";
 import { log } from "@/lib/logger";
 import { overLimit } from "@/lib/rate-limit";
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const form = await req.formData();
   const typeSlug = String(form.get("type") ?? "").trim().toLowerCase().slice(0, 60);
   const code = String(form.get("room") ?? "").trim().toUpperCase().slice(0, 20);
-  const plan = String(form.get("plan") ?? "") === "tahunan" ? LeasePlan.YEARLY : LeasePlan.MONTHLY;
+  const months = parseContractMonths(form.get("months"));
   const back = typeSlug || code;
   const backToRoom = (reason: string) =>
     NextResponse.redirect(new URL(`/kamar/${encodeURIComponent(back)}?sewa=${reason}`, req.url), { status: 303 });
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   if (typeSlug ? !/^[a-z0-9-]{1,60}$/.test(typeSlug) : !/^[A-Z0-9-]{2,20}$/.test(code)) {
     return NextResponse.redirect(new URL("/kamar", req.url), { status: 303 });
   }
+  if (!months) return backToRoom("lama");
   if (await overLimit("apply-web", clientIp(req), 5, 3_600_000)) return backToRoom("batas");
 
   // Calendar date as UTC midnight; absent, malformed or in the past means today.
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const { reference, token } = typeSlug
-      ? await createApplicationForType({ contactId: ctx.contactId, typeSlug, plan, moveIn })
-      : await createApplication({ contactId: ctx.contactId, roomCode: code, plan });
+      ? await createApplicationForType({ contactId: ctx.contactId, typeSlug, months, moveIn })
+      : await createApplication({ contactId: ctx.contactId, roomCode: code, months });
     log.info("application started on website", { reference });
     const res = NextResponse.redirect(new URL(`/apply/${token}`, req.url), { status: 303 });
     if (newCookie) setChatCookie(res, newCookie);

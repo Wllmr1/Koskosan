@@ -18,27 +18,28 @@ describe("createApplication (shared by the bot and the website)", () => {
   it("creates an application for an available room and returns its form token", async () => {
     const r = await room();
     const ctx = await resolveWebContext({ anonId: `anon-rent-${uniq()}`, tenantId: null });
-    const out = await createApplication({ contactId: ctx.contactId, roomCode: r.code.toLowerCase(), plan: "YEARLY" });
+    const out = await createApplication({ contactId: ctx.contactId, roomCode: r.code.toLowerCase(), months: 24 });
 
     const app = await prisma.application.findUniqueOrThrow({ where: { tokenHash: sha256(out.token) } });
     expect(app.roomId).toBe(r.id);
     expect(app.contactId).toBe(ctx.contactId);
-    expect(app.plan).toBe("YEARLY");
+    expect(app.plan).toBe("MONTHLY");
+    expect(app.termMonths).toBe(24);
     expect(app.expiresAt.getTime()).toBeGreaterThan(Date.now() + 47 * 3_600_000);
     expect(out.reference).toBe(app.reference);
   });
 
   it("refuses a room that is not available", async () => {
     const r = await room(RoomStatus.OCCUPIED);
-    await expect(createApplication({ contactId: null, roomCode: r.code, plan: "MONTHLY" })).rejects.toMatchObject({
+    await expect(createApplication({ contactId: null, roomCode: r.code, months: 12 })).rejects.toMatchObject({
       code: "unavailable",
     });
   });
 
   it("treats hidden and unknown rooms as not found", async () => {
     const r = await room(RoomStatus.AVAILABLE, true);
-    await expect(createApplication({ contactId: null, roomCode: r.code, plan: "MONTHLY" })).rejects.toBeInstanceOf(ApplicationError);
-    await expect(createApplication({ contactId: null, roomCode: "NOPE-0", plan: "MONTHLY" })).rejects.toMatchObject({ code: "not_found" });
+    await expect(createApplication({ contactId: null, roomCode: r.code, months: 12 })).rejects.toBeInstanceOf(ApplicationError);
+    await expect(createApplication({ contactId: null, roomCode: "NOPE-0", months: 12 })).rejects.toMatchObject({ code: "not_found" });
   });
 });
 
@@ -54,7 +55,7 @@ describe("POST /api/apply/start (rent on the website)", () => {
 
   it("goes straight to the secure form and starts an anonymous session", async () => {
     const r = await room();
-    const res = await post(`room=${r.code}&plan=bulanan`, { "x-real-ip": `10.6.${uniq()}` });
+    const res = await post(`room=${r.code}&months=12`, { "x-real-ip": `10.6.${uniq()}` });
     expect(res.status).toBe(303);
     const location = new URL(res.headers.get("location")!);
     expect(location.pathname).toMatch(/^\/apply\/[A-Za-z0-9_-]{20,}$/);
@@ -65,13 +66,24 @@ describe("POST /api/apply/start (rent on the website)", () => {
       include: { contact: true },
     });
     expect(app.plan).toBe("MONTHLY");
+    expect(app.termMonths).toBe(12);
     expect(app.contact?.webSessionId).toMatch(/^anon:/);
+  });
+
+  it("sends the visitor back to pick a contract length when none or an odd one is sent", async () => {
+    const r = await room();
+    for (const body of [`room=${r.code}`, `room=${r.code}&months=3`, `room=${r.code}&months=bulanan`]) {
+      const res = await post(body, { "x-real-ip": `10.7.${uniq()}` });
+      expect(res.status).toBe(303);
+      expect(res.headers.get("location")).toBe(`http://localhost:3000/kamar/${r.code}?sewa=lama`);
+    }
+    expect(await prisma.application.count({ where: { roomId: r.id } })).toBe(0);
   });
 
   it("reuses the visitor's existing chat session", async () => {
     const r = await room();
     const anonId = `anonrentexisting${uniq()}`;
-    const res = await post(`room=${r.code}&plan=tahunan`, {
+    const res = await post(`room=${r.code}&months=24`, {
       "x-real-ip": `10.5.${uniq()}`,
       cookie: `kos_chat=${signSession(anonId, 60_000)}`,
     });
@@ -83,13 +95,13 @@ describe("POST /api/apply/start (rent on the website)", () => {
 
   it("sends a visitor back to the room page when it was just taken", async () => {
     const r = await room(RoomStatus.BOOKED);
-    const res = await post(`room=${r.code}&plan=bulanan`, { "x-real-ip": `10.4.${uniq()}` });
+    const res = await post(`room=${r.code}&months=12`, { "x-real-ip": `10.4.${uniq()}` });
     expect(res.headers.get("location")).toBe(`http://localhost:3000/kamar/${r.code}?sewa=penuh`);
   });
 
   it("refuses posts from other websites", async () => {
     const r = await room();
-    const res = await post(`room=${r.code}&plan=bulanan`, { origin: "https://evil.example", "x-real-ip": `10.3.${uniq()}` });
+    const res = await post(`room=${r.code}&months=12`, { origin: "https://evil.example", "x-real-ip": `10.3.${uniq()}` });
     expect(res.status).toBe(403);
   });
 
@@ -97,7 +109,7 @@ describe("POST /api/apply/start (rent on the website)", () => {
     const r = await room();
     const ip = `10.2.${uniq()}`;
     const results: string[] = [];
-    for (let i = 0; i < 6; i++) results.push((await post(`room=${r.code}&plan=bulanan`, { "x-real-ip": ip })).headers.get("location")!);
+    for (let i = 0; i < 6; i++) results.push((await post(`room=${r.code}&months=12`, { "x-real-ip": ip })).headers.get("location")!);
     expect(results.slice(0, 5).every((l) => l.includes("/apply/"))).toBe(true);
     expect(results[5]).toBe(`http://localhost:3000/kamar/${r.code}?sewa=batas`);
   });

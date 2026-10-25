@@ -321,6 +321,7 @@ model Application {
   amountDue         Int?
   signedMonthlyRent Int? // terms as signed — the lease is built from these, not from today's prices
   signedDeposit     Int?
+  termMonths        Int?              // contract length chosen when the application starts (null on older yearly ones)
   signedTermMonths  Int?
   leaseId           String?           @unique
   invoices          Invoice[]

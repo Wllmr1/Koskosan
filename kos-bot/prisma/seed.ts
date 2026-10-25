@@ -148,6 +148,32 @@ async function retireOldSamples() {
  * Starter content. Edit the values here (or in the owner dashboard later) so
  * both the website and the assistant quote your real property.
  */
+// Sample text that changed with the 6 bulan / 1 tahun / 2 tahun contract lengths.
+// Stored copies are only replaced while they still equal the old sample exactly.
+const OLD_HOUSE_RULES = [
+  "Tidak merokok di dalam kamar",
+  "Tamu lawan jenis hanya di ruang tamu",
+  "Jam tenang 22.00–05.00",
+  "Jam tamu 06.00–22.00",
+  "Kontrak minimal 3 bulan",
+];
+const NEW_HOUSE_RULES = [...OLD_HOUSE_RULES.slice(0, 4), "Kontrak 6 bulan, 1 tahun, atau 2 tahun"];
+const OLD_PAYMENT_TERMS = [
+  "Sewa dibayar di muka, jatuh tempo tanggal 5 tiap bulan",
+  "Pilihan bulanan atau tahunan (tahunan bayar 11 bulan)",
+  "Minimal kontrak 3 bulan",
+  "Deposit 1× sewa, kembali maksimal 14 hari setelah keluar",
+  "Bayar lewat QRIS, virtual account, atau e-wallet. Tidak ada pembayaran tunai ke siapa pun.",
+];
+const NEW_PAYMENT_TERMS = [
+  "Sewa dibayar di muka, jatuh tempo tanggal 5 tiap bulan",
+  "Kontrak 6 bulan, 1 tahun, atau 2 tahun, dibayar per bulan",
+  OLD_PAYMENT_TERMS[3],
+  OLD_PAYMENT_TERMS[4],
+];
+const OLD_FAQ_ANSWER = "Bisa. Sewa bulanan jatuh tempo tanggal 5. Kontrak minimal 3 bulan. Kalau bayar tahunan di muka, hanya bayar 11 bulan.";
+const NEW_FAQ_ANSWER = "Bisa. Kontrak 6 bulan, 1 tahun, atau 2 tahun, dan sewa dibayar per bulan, jatuh tempo tanggal 5.";
+
 async function main() {
   await prisma.propertySetting.upsert({
     where: { id: "default" },
@@ -157,20 +183,8 @@ async function main() {
       tagline: "Hunian butik dekat kampus",
       address: "Jl. Anggrek Raya No. 27, dekat gerbang timur kampus",
       mapsUrl: null,
-      houseRules: [
-        "Tidak merokok di dalam kamar",
-        "Tamu lawan jenis hanya di ruang tamu",
-        "Jam tenang 22.00–05.00",
-        "Jam tamu 06.00–22.00",
-        "Kontrak minimal 3 bulan",
-      ],
-      paymentTerms: [
-        "Sewa dibayar di muka, jatuh tempo tanggal 5 tiap bulan",
-        "Pilihan bulanan atau tahunan (tahunan bayar 11 bulan)",
-        "Minimal kontrak 3 bulan",
-        "Deposit 1× sewa, kembali maksimal 14 hari setelah keluar",
-        "Bayar lewat QRIS, virtual account, atau e-wallet. Tidak ada pembayaran tunai ke siapa pun.",
-      ],
+      houseRules: NEW_HOUSE_RULES,
+      paymentTerms: NEW_PAYMENT_TERMS,
       guestRules: [
         "Tamu wajib didaftarkan sebelum jam 21.00",
         "Biaya Rp50.000 per malam per orang",
@@ -194,6 +208,18 @@ async function main() {
     where: { id: "default", name: "Kos Wisma Anggrek" },
     data: { name: "RoemahKOE", tagline: "Hunian butik dekat kampus" },
   });
+  await prisma.propertySetting.updateMany({
+    where: { id: "default", houseRules: { equals: OLD_HOUSE_RULES } },
+    data: { houseRules: NEW_HOUSE_RULES },
+  });
+  await prisma.propertySetting.updateMany({
+    where: { id: "default", paymentTerms: { equals: OLD_PAYMENT_TERMS } },
+    data: { paymentTerms: NEW_PAYMENT_TERMS },
+  });
+  await prisma.faqEntry.updateMany({
+    where: { question: "Apakah bisa sewa bulanan?", answer: OLD_FAQ_ANSWER },
+    data: { answer: NEW_FAQ_ANSWER },
+  });
 
   await seedRoomTypes();
 
@@ -213,7 +239,7 @@ async function main() {
     { name: "Lapangan futsal", distance: "8 menit" },
   ];
   const faq = [
-    { question: "Apakah bisa sewa bulanan?", answer: "Bisa. Sewa bulanan jatuh tempo tanggal 5. Kontrak minimal 3 bulan. Kalau bayar tahunan di muka, hanya bayar 11 bulan." },
+    { question: "Apakah bisa sewa bulanan?", answer: NEW_FAQ_ANSWER },
     { question: "Kapan bisa pindah masuk?", answer: "Kamar berstatus tersedia bisa ditempati setelah kontrak ditandatangani dan pembayaran pertama masuk." },
     { question: "Apakah listrik dibatasi?", answer: "Setiap kamar dapat kuota 100 kWh per bulan. Kelebihan dihitung Rp1.700 per kWh dan ditagih bulan berikutnya." },
     { question: "Boleh bawa tamu menginap?", answer: "Boleh, maksimal 3 malam berturut-turut, didaftarkan lewat asisten sebelum jam 21.00, biaya Rp50.000 per malam." },

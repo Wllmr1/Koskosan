@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { rp, wibNow } from "@/lib/money";
 import { availabilityLabel, listRoomTypes, tagsOf } from "@/lib/room-types";
 import { heroEyebrow, heroLead, heroPhotos, pickShowcase } from "@/lib/site";
+import { CONTRACT_MONTHS, contractLabel } from "@/lib/contract-terms";
 import { photoUrl } from "@/lib/photos";
 import OpenChatButton from "@/components/OpenChatButton";
 import { NoData } from "@/components/site/ui";
@@ -32,7 +33,7 @@ export default async function HomePage() {
 
   const doors = [
     { href: "/fasilitas", title: "Fasilitas", text: `${settings.facilities.length} fasilitas di dalam kos, ${services} layanan berbayar` },
-    { href: "/biaya", title: "Biaya", text: `Bayar bulanan atau tahunan, deposit ${settings.depositMonths}× sewa` },
+    { href: "/biaya", title: "Biaya", text: `Kontrak ${contractLabel(CONTRACT_MONTHS[0])}–${contractLabel(CONTRACT_MONTHS[CONTRACT_MONTHS.length - 1])}, bayar per bulan` },
     { href: "/lokasi", title: "Lokasi", text: nearby.length ? nearby.map((n) => `${n.name}, ${n.distance}`).join("; ") : settings.address },
     { href: "/aturan", title: "Aturan", text: `${settings.houseRules.length} aturan rumah dan aturan tamu menginap` },
     { href: "/faq", title: "FAQ", text: `${faqCount} pertanyaan yang paling sering ditanyakan` },
@@ -75,10 +76,12 @@ export default async function HomePage() {
             <input id="bd" name="masuk" type="date" min={wibNow().date} />
           </div>
           <div className="f">
-            <label className="lbl" htmlFor="bl">Lama tinggal</label>
-            <select id="bl" name="lama" defaultValue="bulanan">
-              <option value="bulanan">Bulanan (min. {settings.minMonths} bulan)</option>
-              <option value="tahunan">Tahunan (12 bulan)</option>
+            <label className="lbl" htmlFor="bl">Lama kontrak</label>
+            <select id="bl" name="lama" defaultValue="">
+              <option value="">Pilih lama kontrak</option>
+              {CONTRACT_MONTHS.map((m) => (
+                <option key={m} value={m}>{contractLabel(m)}</option>
+              ))}
             </select>
           </div>
           <button className="btn pri" type="submit">Cek ketersediaan</button>
