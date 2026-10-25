@@ -48,6 +48,24 @@ describe("owner login", () => {
     expect(await adminFromCookie(s!.cookie)).toBeNull();
   });
 
+  it("changing ADMIN_PASSWORD ends the owner's open sessions", async () => {
+    const s = await ownerLogin();
+    expect(await adminFromCookie(s!.cookie)).not.toBeNull();
+    const row = await prisma.adminSession.findUniqueOrThrow({ where: { id: s!.identity.sessionId } });
+    expect(row.ownerKey).toBeTruthy();
+    expect(row.ownerKey).not.toContain(env().ADMIN_PASSWORD);
+
+    const original = env().ADMIN_PASSWORD;
+    env().ADMIN_PASSWORD = `${original}-new`;
+    try {
+      expect(await adminFromCookie(s!.cookie)).toBeNull();
+    } finally {
+      env().ADMIN_PASSWORD = original;
+    }
+    // Gone for good, even with the old password back.
+    expect(await adminFromCookie(s!.cookie)).toBeNull();
+  });
+
   it("a tampered cookie is refused", async () => {
     const s = await ownerLogin();
     const [payload, exp] = s!.cookie.split(".");
@@ -82,6 +100,15 @@ describe("registered admins", () => {
     await setAdminDisabled(admin.id, true);
     expect(await adminFromCookie(s!.cookie)).toBeNull();
     expect(await loginAdmin(email, "rina-kunci-123")).toBeNull();
+  });
+
+  it("re-enabling an admin does not revive a setup link made before they were switched off", async () => {
+    const email = `staff-${uniq()}@kos.test`;
+    const { admin, link } = await createAdmin({ name: "Bu Lina", email });
+    await setAdminDisabled(admin.id, true);
+    await setAdminDisabled(admin.id, false);
+    expect(await consumeAdminSetup(tokenOf(link), "lina-kunci-123", "lina-kunci-123")).toMatchObject({ ok: false });
+    expect(await loginAdmin(email, "lina-kunci-123")).toBeNull();
   });
 
   it("refuses the owner's email or a duplicate as a new admin", async () => {

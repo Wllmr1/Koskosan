@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { env } from "@/env";
@@ -15,6 +16,13 @@ const SETUP_TTL_MS = 24 * 3_600_000;
 export type AdminIdentity = { sessionId: string; isOwner: boolean; adminId: string | null; name: string; email: string };
 
 const norm = (email: string) => email.trim().toLowerCase();
+
+/**
+ * Which ADMIN_PASSWORD an owner session was opened with: an HMAC keyed with the
+ * session secret, never the password itself. A new password ends old sessions.
+ */
+const ownerKey = () =>
+  crypto.createHmac("sha256", env().SESSION_SECRET).update(`owner-password:${env().ADMIN_PASSWORD}`).digest("hex").slice(0, 32);
 
 // Checked when nothing matches, so a wrong email takes as long as a wrong password.
 let dummyHash: Promise<string> | null = null;
@@ -43,7 +51,7 @@ export async function loginAdmin(email: string, password: string): Promise<{ coo
     await prisma.admin.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } });
   }
 
-  const session = await prisma.adminSession.create({ data: { adminId } });
+  const session = await prisma.adminSession.create({ data: { adminId, ownerKey: adminId === null ? ownerKey() : null } });
   return {
     cookie: signSession(session.id, ADMIN_MAX_MS),
     identity: { sessionId: session.id, isOwner: adminId === null, adminId, name, email: e },
@@ -59,7 +67,10 @@ export async function adminFromCookie(value: string | undefined, now = new Date(
 
   const expired =
     now.getTime() - session.lastSeenAt.getTime() > ADMIN_IDLE_MS || now.getTime() - session.createdAt.getTime() > ADMIN_MAX_MS;
-  if (expired || (session.admin && (session.admin.disabled || !session.admin.passwordHash))) {
+  const revoked = session.admin
+    ? session.admin.disabled || !session.admin.passwordHash
+    : !safeEqual(session.ownerKey ?? "", ownerKey());
+  if (expired || revoked) {
     await prisma.adminSession.deleteMany({ where: { id } });
     return null;
   }
@@ -156,10 +167,18 @@ export async function consumeAdminSetup(raw: string, password: string, confirm: 
   return { ok: true };
 }
 
-/** Disabling ends every session of that admin immediately. */
+/**
+ * Disabling ends every session of that admin immediately and burns their open
+ * setup links, so switching them back on does not revive an old link.
+ */
 export async function setAdminDisabled(adminId: string, disabled: boolean) {
   await prisma.$transaction([
     prisma.admin.update({ where: { id: adminId }, data: { disabled } }),
-    ...(disabled ? [prisma.adminSession.deleteMany({ where: { adminId } })] : []),
+    ...(disabled
+      ? [
+          prisma.adminSession.deleteMany({ where: { adminId } }),
+          prisma.adminSetupToken.updateMany({ where: { adminId, usedAt: null }, data: { usedAt: new Date() } }),
+        ]
+      : []),
   ]);
 }

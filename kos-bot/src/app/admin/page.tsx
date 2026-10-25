@@ -76,7 +76,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return (
     <main className="wrap" style={{ padding: "26px 20px 60px" }}>
       <header style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 24 }}>Dashboard pemilik</h1>
+        <h1 style={{ fontSize: 24 }}>Dashboard</h1>
         <span className="muted small" style={{ marginLeft: "auto" }}>Masuk sebagai {who.name}</span>
         <a className="btn" href="/">Lihat situs</a>
         <a className="btn" href="/admin/data">Data kos</a>
@@ -84,7 +84,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <a className="btn" href="/admin/penghuni/baru">Tambah penghuni</a>
         <a className="btn" href="/admin/meteran">Catat meteran</a>
         {who.isOwner && <a className="btn" href="/admin/admin">Kelola admin</a>}
-        <a className="btn" href="/api/admin/logout">Keluar</a>
+        <form method="post" action="/api/admin/logout" style={{ margin: 0 }}>
+          <button className="btn" type="submit">Keluar</button>
+        </form>
       </header>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14, marginBottom: 24 }}>

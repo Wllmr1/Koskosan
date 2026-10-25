@@ -35,14 +35,14 @@ describe("meter readings and over-limit bills", () => {
   });
 
   it("bills only rooms over the quota, once, and tells the renter", async () => {
-    const first = await billOverage(PERIOD);
+    const first = await billOverage(PERIOD, "owner");
     expect(first.created).toBeGreaterThanOrEqual(1);
     const bills = await prisma.invoice.findMany({ where: { lease: { roomId: { in: [roomOver, roomUnder] } }, kind: InvoiceKind.UTILITY_OVERAGE } });
     expect(bills).toHaveLength(1);
     expect(bills[0]).toMatchObject({ amount: 30_600 });
     expect(bills[0].description).toMatch(/September 2026.*18 kWh/);
 
-    await billOverage(PERIOD);
+    await billOverage(PERIOD, "owner");
     expect(await prisma.invoice.count({ where: { lease: { roomId: roomOver }, kind: InvoiceKind.UTILITY_OVERAGE } })).toBe(1);
 
     const note = await prisma.message.findFirst({ where: { conversation: { contact: { webSessionId: `renter:${tenantOver}` } } } });

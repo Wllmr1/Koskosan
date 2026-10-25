@@ -505,6 +505,7 @@ model AdminSession {
   id         String   @id @default(cuid())
   adminId    String? // null = the owner
   admin      Admin?   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  ownerKey   String? // owner only: fingerprint of ADMIN_PASSWORD at login, so changing it ends these sessions
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 

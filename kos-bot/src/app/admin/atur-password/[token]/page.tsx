@@ -6,15 +6,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Atur password admin", robots: { index: false, follow: false }, referrer: "no-referrer" as const };
 
 /** Public: a helper opens the link the owner sent them and chooses a password. */
-export default async function AdminSetPasswordPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ token: string }>;
-  searchParams: Promise<{ error?: string }>;
-}) {
+export default async function AdminSetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const { error } = await searchParams;
   const row = await findAdminSetup(token);
 
   return (
@@ -30,7 +23,6 @@ export default async function AdminSetPasswordPage({
           <p className="muted small" style={{ margin: "0 0 20px" }}>
             Untuk {row.admin.name} ({row.admin.email}). Minimal {PASSWORD_MIN} karakter.
           </p>
-          {error && <p role="alert" style={{ color: "var(--bad)", fontSize: 13.5, marginBottom: 12 }}>{error.slice(0, 160)}</p>}
           <input type="hidden" name="token" value={token} />
           <label htmlFor="password">Password baru</label>
           <input id="password" name="password" type="password" autoComplete="new-password" minLength={PASSWORD_MIN} required />

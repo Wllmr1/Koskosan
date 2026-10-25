@@ -62,8 +62,8 @@ describe("a renter booked in advance", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].leaseId).toBe(currentLease);
 
-    await billOverage(JAN);
-    await billOverage(JAN);
+    await billOverage(JAN, "owner");
+    await billOverage(JAN, "owner");
     const bills = await prisma.invoice.findMany({ where: { lease: { roomId }, kind: InvoiceKind.UTILITY_OVERAGE } });
     expect(bills.map((b) => b.leaseId)).toEqual([currentLease]);
   });

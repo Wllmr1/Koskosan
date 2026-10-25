@@ -38,7 +38,7 @@ describe("adding a renter who signed on paper", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
 
-    const { tenant, lease } = await addExistingTenant(parsed.data);
+    const { tenant, lease } = await addExistingTenant(parsed.data, null, "owner");
     expect(tenant.phoneE164).toBe(`+62${phone.slice(1)}`);
     expect(decrypt(tenant.idNumberEnc)).toBe("3201555566667777");
     expect(tenant.passwordHash).toBeNull();
@@ -51,13 +51,13 @@ describe("adding a renter who signed on paper", () => {
     const phone = `0812${uniq().slice(-8)}`;
     const first = parseExistingTenant(form(base(room.id, phone)));
     if (!first.success) throw new Error("parse");
-    await addExistingTenant(first.data);
+    await addExistingTenant(first.data, null, "owner");
 
-    await expect(addExistingTenant(first.data)).rejects.toThrow(/nomor HP/i);
+    await expect(addExistingTenant(first.data, null, "owner")).rejects.toThrow(/nomor HP/i);
 
     const other = parseExistingTenant(form(base(room.id, `0812${uniq().slice(-8)}`)));
     if (!other.success) throw new Error("parse");
-    await expect(addExistingTenant(other.data)).rejects.toThrow(/sudah ada penghuni aktif/);
+    await expect(addExistingTenant(other.data, null, "owner")).rejects.toThrow(/sudah ada penghuni aktif/);
   });
 
   it("rejects bad input before touching the database", () => {

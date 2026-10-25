@@ -75,7 +75,3 @@ export function readSigned(value: string | undefined): string | null {
   if (!(Number(exp) > Date.now())) return null;
   return payload;
 }
-
-export function verifySession(cookie: string | undefined): boolean {
-  return readSigned(cookie) !== null;
-}

@@ -48,7 +48,17 @@ them back in with the same password. Helpers can do everything in the
 dashboard except Kelola admin.
 
 Every login ends after 30 minutes without activity and after 4 hours in any
-case. Login attempts are limited to 8 per IP per 15 minutes.
+case; changing `ADMIN_PASSWORD` (and restarting) also ends the owner's open
+logins. "Keluar" is a button (a POST); the old `/api/admin/logout` link now
+only goes to the login page. Login attempts are limited to 8 per IP per 15
+minutes, helper password links to 10 per IP per 15 minutes.
+
+**Production proxy (required for those limits):** the IP is read from
+`X-Real-IP` (else the last `X-Forwarded-For` hop). Run the app only behind a
+proxy that **overwrites** that header with the real client address — nginx:
+`proxy_set_header X-Real-IP $remote_addr;` — or on Vercel, which sets it. If the
+app is reachable directly, anyone can send a fresh `X-Real-IP` per attempt and
+the limits do nothing.
 
 ## 4. Known, pre-existing
 

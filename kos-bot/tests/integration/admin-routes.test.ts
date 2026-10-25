@@ -87,17 +87,27 @@ describe("login route", () => {
 });
 
 describe("logout route", () => {
-  for (const [method, handler] of [["GET", logoutGet], ["POST", logoutPost]] as const) {
-    it(`${method} ends the session, clears the cookie and goes to the login page`, async () => {
-      const cookie = await ownerCookie();
-      const req = new NextRequest(`${ORIGIN}/api/admin/logout`, { method, headers: { origin: ORIGIN, cookie: `${ADMIN_COOKIE}=${cookie}` } });
-      const res = await handler(req);
-      expect(res.status).toBe(303);
-      expect(where(res)).toBe("/admin/login");
-      expect(res.headers.get("set-cookie")).toMatch(/kos_admin=;/);
-      expect(await adminFromCookie(cookie)).toBeNull();
-    });
-  }
+  const logoutReq = (method: string, cookie: string, origin = ORIGIN) =>
+    new NextRequest(`${ORIGIN}/api/admin/logout`, { method, headers: { origin, cookie: `${ADMIN_COOKIE}=${cookie}` } });
+
+  it("POST ends the session, clears the cookie and goes to the login page", async () => {
+    const cookie = await ownerCookie();
+    const res = await logoutPost(logoutReq("POST", cookie));
+    expect(res.status).toBe(303);
+    expect(where(res)).toBe("/admin/login");
+    expect(res.headers.get("set-cookie")).toMatch(/kos_admin=;/);
+    expect(await adminFromCookie(cookie)).toBeNull();
+  });
+
+  it("another site cannot log anyone out: a cross-site POST is refused and GET only redirects", async () => {
+    const cookie = await ownerCookie();
+    expect((await logoutPost(logoutReq("POST", cookie, "https://evil.example"))).status).toBe(403);
+    const res = await logoutGet(logoutReq("GET", cookie));
+    expect(res.status).toBe(303);
+    expect(where(res)).toBe("/admin/login");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(await adminFromCookie(cookie)).not.toBeNull();
+  });
 });
 
 describe("admins route (Kelola admin)", () => {
@@ -187,15 +197,26 @@ describe("helper sets a password (atur-password route)", () => {
     expect(where(res2)).toBe("/admin");
   });
 
-  it("a used link or a weak password goes back to the form with the message", async () => {
-    const { link } = await helper();
+  it("a used link or a weak password shows the form again with the message, never redirecting with the token", async () => {
+    const { link } = await helper("Pak Dodi");
     const token = tokenOf(link);
     const weak = await setPassword(post("/api/admin/atur-password", { token, password: "pendek", passwordConfirm: "pendek" }, { "x-real-ip": ip() }));
-    expect(decodeURIComponent(where(weak)!)).toContain("minimal 10 karakter");
+    expect(weak.status).toBe(200);
+    expect(weak.headers.get("location")).toBeNull();
+    expect(weak.headers.get("cache-control")).toBe("no-store");
+    expect(weak.headers.get("referrer-policy")).toBe("no-referrer");
+    const html = await weak.text();
+    expect(html).toContain("minimal 10 karakter");
+    expect(html).toContain("Pak Dodi");
+    expect(html).toContain('action="/api/admin/atur-password"');
 
     await setPassword(post("/api/admin/atur-password", { token, password: "budi-kunci-123", passwordConfirm: "budi-kunci-123" }, { "x-real-ip": ip() }));
     const again = await setPassword(post("/api/admin/atur-password", { token, password: "budi-kunci-456", passwordConfirm: "budi-kunci-456" }, { "x-real-ip": ip() }));
-    expect(decodeURIComponent(where(again)!)).toContain("Link sudah dipakai atau kedaluwarsa");
+    expect(again.status).toBe(200);
+    expect(again.headers.get("location")).toBeNull();
+    const html2 = await again.text();
+    expect(html2).toContain("Link sudah dipakai atau kedaluwarsa");
+    expect(html2).not.toContain(token);
   });
 
   it("refuses another site, and too many attempts from one IP", async () => {
