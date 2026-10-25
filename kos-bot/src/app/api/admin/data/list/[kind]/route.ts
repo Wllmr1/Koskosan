@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { backTo, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { firstIssue, LIST_KINDS, parseListItem, type ListKind } from "@/lib/admin-forms";
 
 export const runtime = "nodejs";
@@ -46,7 +46,7 @@ function store(kind: ListKind): ListStore {
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ kind: string }> }) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const { kind } = await ctx.params;
@@ -77,6 +77,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ kind: stri
     }
   }
 
-  await prisma.auditLog.create({ data: { actor: "owner", action: `data:${kind}:${op}` } });
+  await prisma.auditLog.create({ data: { actor: await auditActor(), action: `data:${kind}:${op}` } });
   return backTo(req, path, "saved=1");
 }

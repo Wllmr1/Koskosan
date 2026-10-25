@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { InvoiceStatus, RoomStatus, TicketStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isOwner } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { niceDate, rp } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ const ROOM_NOTICE: Record<string, { text: string; tone: "ok" | "bad" }> = {
 };
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ room?: string }> }) {
-  if (!(await isOwner())) redirect("/admin/login");
+  await requireAdmin();
   const { room: roomNotice } = await searchParams;
 
   const [notifications, leases, unpaid, tickets, guests, applications, botStats, rooms] = await Promise.all([

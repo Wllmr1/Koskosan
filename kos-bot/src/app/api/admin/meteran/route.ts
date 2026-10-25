@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { backTo, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, adminPostGuard } from "@/lib/admin-guard";
 import { billOverage, saveMeterReadings } from "@/lib/meter";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();

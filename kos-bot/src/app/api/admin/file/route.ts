@@ -1,5 +1,6 @@
+import { auditActor } from "@/lib/admin-guard";
 import { NextRequest, NextResponse } from "next/server";
-import { isOwner } from "@/lib/auth";
+import { isAdmin } from "@/lib/auth";
 import { getObject } from "@/lib/storage";
 import { prisma } from "@/lib/prisma";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * read is written to the audit log — so you can always answer "who opened this".
  */
 export async function GET(req: NextRequest) {
-  if (!(await isOwner())) return new NextResponse("unauthorized", { status: 401 });
+  if (!(await isAdmin())) return new NextResponse("unauthorized", { status: 401 });
 
   const key = req.nextUrl.searchParams.get("key") ?? "";
   if (!/^(ktp|contracts|signatures)\/[A-Za-z0-9._-]+$/.test(key)) {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const body = await getObject(key);
-    await prisma.auditLog.create({ data: { actor: "owner", action: "file:read", meta: { key } as never } });
+    await prisma.auditLog.create({ data: { actor: await auditActor(), action: "file:read", meta: { key } as never } });
     const type = key.endsWith(".pdf")
       ? "application/pdf"
       : key.endsWith(".png")

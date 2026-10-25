@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RoomStatus } from "@prisma/client";
 import { z } from "zod";
-import { ownerPostGuard } from "@/lib/admin-guard";
+import { adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ const schema = z.object({
  * both read this row, so the change is live everywhere at once.
  */
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   });
   await prisma.auditLog.create({
     data: {
-      actor: "owner",
+      actor: await auditActor(),
       action: "room:update",
       meta: { room: room.code, from: room.status, to: status, price: monthlyPrice } as never,
     },

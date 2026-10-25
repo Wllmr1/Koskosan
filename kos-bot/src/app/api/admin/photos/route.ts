@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { backTo, ownerPostGuard } from "@/lib/admin-guard";
+import { backTo, adminPostGuard, auditActor } from "@/lib/admin-guard";
 import { addPhoto, movePhoto, removePhoto, setCover } from "@/lib/photos";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const denied = await ownerPostGuard(req);
+  const denied = await adminPostGuard(req);
   if (denied) return denied;
 
   const form = await req.formData();
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         failed.push(`${file.name.slice(0, 40)}: ${(e as Error).message}`);
       }
     }
-    await prisma.auditLog.create({ data: { actor: "owner", action: "photo:upload", meta: { roomId, count: files.length - failed.length } as never } });
+    await prisma.auditLog.create({ data: { actor: await auditActor(), action: "photo:upload", meta: { roomId, count: files.length - failed.length } as never } });
     return failed.length ? done(`error=${encodeURIComponent(failed.join("; "))}`) : done("saved=1");
   }
 
@@ -47,6 +47,6 @@ export async function POST(req: NextRequest) {
   else if (op === "delete") await removePhoto(id);
   else return done(`error=${encodeURIComponent("Aksi tidak dikenal")}`);
 
-  await prisma.auditLog.create({ data: { actor: "owner", action: `photo:${op}`, meta: { id } as never } });
+  await prisma.auditLog.create({ data: { actor: await auditActor(), action: `photo:${op}`, meta: { id } as never } });
   return done("saved=1");
 }

@@ -1,10 +1,21 @@
-import { cookies } from "next/headers";
-import { verifySession } from "./crypto";
+import { redirect } from "next/navigation";
+import { currentAdmin, type AdminIdentity } from "./admin-auth";
 
-export const SESSION_COOKIE = "kos_owner";
-export const SESSION_TTL_MS = 12 * 3_600_000;
+/** Any logged-in dashboard user (owner or registered admin). */
+export async function isAdmin(): Promise<boolean> {
+  return (await currentAdmin()) !== null;
+}
 
-export async function isOwner(): Promise<boolean> {
-  const jar = await cookies();
-  return verifySession(jar.get(SESSION_COOKIE)?.value);
+/** For dashboard pages: the logged-in admin, or a redirect to the login page. Every page calls this itself. */
+export async function requireAdmin(): Promise<AdminIdentity> {
+  const who = await currentAdmin();
+  if (!who) redirect("/admin/login");
+  return who;
+}
+
+/** For owner-only pages (managing admins). Other admins go back to the dashboard. */
+export async function requireOwner(): Promise<AdminIdentity> {
+  const who = await requireAdmin();
+  if (!who.isOwner) redirect("/admin");
+  return who;
 }
