@@ -7,7 +7,7 @@ type Props = {
   propertyName: string;
   reference: string;
   moveIn: { min: string; value?: string };
-  room: { code: string; type: string; size: string; price: string };
+  room: { type: string; size: string; price: string };
   plan: string;
   startStep: number;
   summary: { rentLabel: string; rentAmount: string; depositAmount: string; total: string };
@@ -169,213 +169,166 @@ export default function ApplyFlow(props: Props) {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="card" style={{ overflow: "hidden" }}>
-      <header style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
-        <div>
-          <strong style={{ fontFamily: "var(--display)", fontSize: 16, display: "block" }}>{props.propertyName}</strong>
-          <span className="small muted">
-            Kamar {props.room.code} · {props.plan} · {props.reference}
-          </span>
-        </div>
-        <span className="pill pill-ok" style={{ marginLeft: "auto" }}>🔒 Halaman aman</span>
-      </header>
+    <div>
+      <div className="flow-head">
+        <div className="lbl">{props.propertyName} · {props.plan} · {props.reference}</div>
+        <h1>Sewa kamar</h1>
+        <p>{props.room.type} · {props.room.size} · {props.room.price} per bulan</p>
+      </div>
 
-      <div style={{ display: "flex", gap: 6, padding: "14px 20px 0" }}>
+      <div className="stepper" aria-label="Langkah pendaftaran">
         {STEPS.map((label, i) => (
-          <div key={label} style={{ flex: 1 }}>
-            <div style={{ height: 4, borderRadius: 2, background: i < step ? "var(--brand)" : "var(--line)" }} />
-            <span className="small muted" style={{ fontSize: 11.5, display: "block", marginTop: 5 }}>{label}</span>
+          <div key={label} className={i < step - 1 ? "done" : i === step - 1 ? "on" : undefined} aria-current={i === step - 1 ? "step" : undefined}>
+            {label}
           </div>
         ))}
       </div>
 
-      <div style={{ padding: 20 }}>
-        {errors.form && <Alert>{errors.form}</Alert>}
+      {errors.form && <p className="err" role="alert">{errors.form}</p>}
 
-        {step === 1 && (
-          <form onSubmit={submitDetails} noValidate>
-            <Note>
-              Data ini dipakai untuk kontrak sewa dan disimpan terenkripsi. Kami tidak pernah meminta data kakak lewat
-              chat.
-            </Note>
+      {step === 1 && (
+        <form className="form" onSubmit={submitDetails} noValidate>
+          <p className="notice">
+            Data ini dipakai untuk kontrak sewa dan disimpan terenkripsi. Kami tidak pernah meminta data kakak lewat
+            chat.
+          </p>
 
-            <Field label="Nama lengkap sesuai KTP" error={errors.fullName}>
-              <input name="fullName" autoComplete="name" onInput={() => clearError("fullName")} required />
+          <Field label="Nama lengkap sesuai KTP" error={errors.fullName}>
+            <input name="fullName" autoComplete="name" onInput={() => clearError("fullName")} required />
+          </Field>
+
+          <div className="row2">
+            <Field label="Nomor HP aktif" error={errors.phone}>
+              <input name="phone" inputMode="tel" placeholder="0812…" autoComplete="tel" onInput={() => clearError("phone")} required />
             </Field>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Nomor HP aktif" error={errors.phone}>
-                <input name="phone" inputMode="tel" placeholder="0812…" autoComplete="tel" onInput={() => clearError("phone")} required />
-              </Field>
-              <Field label="Tanggal lahir" error={errors.dateOfBirth}>
-                <input name="dateOfBirth" type="date" max={today} onInput={() => clearError("dateOfBirth")} required />
-              </Field>
-            </div>
-
-            <Field label="Nomor KTP (16 digit)" error={errors.idNumber} hint="Disimpan terenkripsi. Yang tampil hanya 4 angka terakhir.">
-              <input name="idNumber" inputMode="numeric" maxLength={16} onInput={() => clearError("idNumber")} required />
+            <Field label="Tanggal lahir" error={errors.dateOfBirth}>
+              <input name="dateOfBirth" type="date" max={today} onInput={() => clearError("dateOfBirth")} required />
             </Field>
+          </div>
 
-            <Field label="Foto KTP" error={errors.ktp} hint="JPG, PNG, atau WEBP. Maksimal 6 MB. Hanya pemilik kos yang bisa membukanya.">
-              <input name="ktp" type="file" accept="image/jpeg,image/png,image/webp" onChange={() => clearError("ktp")} required />
+          <Field label="Nomor KTP (16 digit)" error={errors.idNumber} hint="Disimpan terenkripsi. Yang tampil hanya 4 angka terakhir.">
+            <input name="idNumber" inputMode="numeric" maxLength={16} onInput={() => clearError("idNumber")} required />
+          </Field>
+
+          <Field label="Foto KTP" error={errors.ktp} hint="JPG, PNG, atau WEBP. Maksimal 6 MB. Hanya pemilik kos yang bisa membukanya.">
+            <input name="ktp" type="file" accept="image/jpeg,image/png,image/webp" onChange={() => clearError("ktp")} required />
+          </Field>
+
+          <div className="row2">
+            <Field
+              label="Buat password"
+              error={errors.password}
+              hint="Minimal 10 karakter. Dipakai untuk masuk sebagai penghuni."
+            >
+              <input name="password" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("password")} required />
             </Field>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field
-                label="Buat password"
-                error={errors.password}
-                hint="Minimal 10 karakter. Dipakai untuk masuk sebagai penghuni."
-              >
-                <input name="password" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("password")} required />
-              </Field>
-              <Field label="Ulangi password" error={errors.passwordConfirm}>
-                <input name="passwordConfirm" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("passwordConfirm")} required />
-              </Field>
-            </div>
-
-            <Field label="Tanggal mulai masuk" error={errors.moveInDate}>
-              <input name="moveInDate" type="date" min={props.moveIn.min} defaultValue={props.moveIn.value ?? props.moveIn.min} required />
+            <Field label="Ulangi password" error={errors.passwordConfirm}>
+              <input name="passwordConfirm" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("passwordConfirm")} required />
             </Field>
+          </div>
 
-            <button className="btn btn-pri" type="submit" disabled={busy} style={{ width: "100%", marginTop: 6 }}>
+          <Field label="Tanggal mulai masuk" error={errors.moveInDate}>
+            <input name="moveInDate" type="date" min={props.moveIn.min} defaultValue={props.moveIn.value ?? props.moveIn.min} required />
+          </Field>
+
+          <div className="actions">
+            <button className="btn pri" type="submit" disabled={busy}>
               {busy ? "Menyimpan…" : "Lanjut ke kontrak"}
             </button>
-          </form>
-        )}
-
-        {step === 2 && (
-          <>
-            <div
-              style={{
-                border: "1px solid var(--line)",
-                borderRadius: 12,
-                padding: "16px 18px",
-                maxHeight: 340,
-                overflowY: "auto",
-                background: "var(--wash)",
-              }}
-            >
-              <h2 style={{ fontSize: 16, marginBottom: 2 }}>Perjanjian Sewa Kamar Kos</h2>
-              <p className="small muted" style={{ margin: "0 0 14px" }}>Referensi {props.reference}</p>
-              {props.clauses.map((clause) => (
-                <div key={clause.heading} style={{ marginBottom: 12 }}>
-                  <strong style={{ fontSize: 14 }}>{clause.heading}</strong>
-                  <p className="muted" style={{ margin: "3px 0 0", fontSize: 13.5, whiteSpace: "pre-line" }}>
-                    {clause.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <label style={{ display: "flex", gap: 9, alignItems: "flex-start", margin: "16px 0 4px", fontWeight: 400 }}>
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => { setAgreed(e.target.checked); clearError("agreed"); }}
-                style={{ width: "auto", marginTop: 4 }}
-              />
-              <span style={{ fontSize: 14.5 }}>Saya sudah membaca dan menyetujui seluruh isi kontrak di atas.</span>
-            </label>
-            {errors.agreed && <ErrorText>{errors.agreed}</ErrorText>}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-              <button className="btn" type="button" onClick={() => setStep(1)}>Kembali</button>
-              <button
-                className="btn btn-pri"
-                type="button"
-                style={{ flex: 1 }}
-                onClick={() => (agreed ? setStep(3) : fail("agreed", "Centang persetujuan dulu ya."))}
-              >
-                Lanjut tanda tangan
-              </button>
-            </div>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <p className="muted small" style={{ marginTop: 0 }}>
-              Tanda tangan di kotak ini pakai jari atau mouse. Tanda tangan, waktu, dan alamat IP dicatat sebagai bukti
-              persetujuan.
-            </p>
-            <canvas
-              ref={canvasRef}
-              style={{
-                width: "100%",
-                height: 170,
-                border: "1px dashed var(--line)",
-                borderRadius: 12,
-                background: "#fff",
-                touchAction: "none",
-                display: "block",
-              }}
-            />
-            {errors.signature && <ErrorText>{errors.signature}</ErrorText>}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-              <button className="btn" type="button" onClick={clearSignature}>Ulangi</button>
-              <button className="btn" type="button" onClick={() => setStep(2)}>Kembali</button>
-              <button className="btn btn-pri" type="button" style={{ flex: 1 }} onClick={submitSignature} disabled={busy}>
-                {busy ? "Memproses…" : `Tanda tangani & bayar ${props.summary.total}`}
-              </button>
-            </div>
-
-            <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", marginTop: 16 }}>
-              <Row label={props.summary.rentLabel} value={props.summary.rentAmount} />
-              <Row label="Deposit (dikembalikan)" value={props.summary.depositAmount} />
-              <div style={{ borderTop: "1px solid var(--line)", marginTop: 8, paddingTop: 8 }}>
-                <Row label="Total pembayaran pertama" value={props.summary.total} strong />
-              </div>
-            </div>
-          </>
-        )}
-
-        {step === 4 && (
-          <div style={{ textAlign: "center", padding: "32px 0" }}>
-            <p className="muted">Mengarahkan ke halaman pembayaran…</p>
           </div>
-        )}
-      </div>
+        </form>
+      )}
+
+      {step === 2 && (
+        <>
+          <div className="contract">
+            <h3>Perjanjian Sewa Kamar Kos</h3>
+            <p className="ref">Referensi {props.reference}</p>
+            {props.clauses.map((clause) => (
+              <div key={clause.heading} className="clause">
+                <b>{clause.heading}</b>
+                <p>{clause.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <label className="agree">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => { setAgreed(e.target.checked); clearError("agreed"); }}
+            />
+            <span>Saya sudah membaca dan menyetujui seluruh isi kontrak di atas.</span>
+          </label>
+          {errors.agreed && <ErrorText>{errors.agreed}</ErrorText>}
+
+          <div className="actions">
+            <button
+              className="btn pri"
+              type="button"
+              onClick={() => (agreed ? setStep(3) : fail("agreed", "Centang persetujuan dulu ya."))}
+            >
+              Lanjut tanda tangan
+            </button>
+            <button className="btn" type="button" onClick={() => setStep(1)}>Kembali</button>
+          </div>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          <p style={{ color: "var(--ink-2)", marginTop: 0 }}>
+            Tanda tangan di kotak ini pakai jari atau mouse. Tanda tangan, waktu, dan alamat IP dicatat sebagai bukti
+            persetujuan.
+          </p>
+          <canvas ref={canvasRef} className="sig" aria-label="Kotak tanda tangan" />
+          {errors.signature && <ErrorText>{errors.signature}</ErrorText>}
+
+          <div className="paybox">
+            <Row label={props.summary.rentLabel} value={props.summary.rentAmount} />
+            <Row label="Deposit (dikembalikan)" value={props.summary.depositAmount} />
+            <Row label="Total pembayaran pertama" value={props.summary.total} total />
+          </div>
+
+          <div className="actions">
+            <button className="btn pri" type="button" onClick={submitSignature} disabled={busy}>
+              {busy ? "Memproses…" : `Tanda tangani & bayar ${props.summary.total}`}
+            </button>
+            <button className="btn" type="button" onClick={clearSignature}>Ulangi</button>
+            <button className="btn" type="button" onClick={() => setStep(2)}>Kembali</button>
+          </div>
+        </>
+      )}
+
+      {step === 4 && (
+        <p className="notice" style={{ textAlign: "center" }}>Mengarahkan ke halaman pembayaran…</p>
+      )}
     </div>
   );
 }
 
 function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label>{label}</label>
-      {children}
-      {hint && !error && <p className="small muted" style={{ margin: "4px 0 0", fontSize: 12.5 }}>{hint}</p>}
+    <div>
+      <label className="lbl">
+        {label}
+        {children}
+      </label>
+      {hint && !error && <div className="hint">{hint}</div>}
       {error && <ErrorText>{error}</ErrorText>}
     </div>
   );
 }
 
 function ErrorText({ children }: { children: React.ReactNode }) {
-  return <p style={{ color: "var(--bad)", fontSize: 12.5, margin: "4px 0 0" }}>{children}</p>;
+  return <div className="err" role="alert">{children}</div>;
 }
 
-function Note({ children }: { children: React.ReactNode }) {
+function Row({ label, value, total }: { label: string; value: string; total?: boolean }) {
   return (
-    <div style={{ background: "var(--gold-soft)", color: "var(--gold)", borderRadius: 12, padding: "10px 13px", fontSize: 13, marginBottom: 16 }}>
-      {children}
-    </div>
-  );
-}
-
-function Alert({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ background: "var(--bad-soft)", color: "var(--bad)", borderRadius: 12, padding: "10px 13px", fontSize: 13.5, marginBottom: 14 }}>
-      {children}
-    </div>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "3px 0", fontSize: strong ? 16 : 14 }}>
-      <span className={strong ? undefined : "muted"}>{label}</span>
-      <strong>{value}</strong>
+    <div className={total ? "row total" : "row"}>
+      <span>{label}</span>
+      <b>{value}</b>
     </div>
   );
 }

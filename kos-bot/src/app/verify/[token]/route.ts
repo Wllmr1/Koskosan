@@ -39,12 +39,13 @@ function html(message: string, ok: boolean) {
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Verifikasi akun</title>
 <style>
 :root{color-scheme:only light}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f1e9dc;color:#2e241b;
-font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
-.card{background:#fbf8f2;border:1px solid #e2d6c4;border-radius:20px;padding:36px 28px;max-width:420px;text-align:center}
-.icon{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;font-size:30px;
-background:${ok ? "#e3f4eb" : "#fbe9ec"};color:${ok ? "#1f7a4d" : "#b23046"}}
-h1{font-size:19px;margin:0 0 8px}p{margin:0;color:#5e5144;font-size:15px;line-height:1.6}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;color:#111;
+font-family:Jost,Futura,system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
+.card{max-width:420px;text-align:center}
+.icon{width:64px;height:64px;display:grid;place-items:center;margin:0 auto 22px;font-size:28px;
+border:1px solid ${ok ? "#1E6B45" : "#A42A3F"};color:${ok ? "#1E6B45" : "#A42A3F"}}
+h1{font-family:"Bodoni Moda",Didot,Georgia,serif;font-weight:400;font-size:34px;line-height:1.1;margin:0 0 12px}
+p{margin:0;color:#5A5753;font-size:16px;line-height:1.7}
 </style></head><body><div class="card"><div class="icon">${ok ? "✓" : "!"}</div>
 <h1>${ok ? "Berhasil" : "Tidak berhasil"}</h1><p>${message}</p></div></body></html>`;
   return new NextResponse(body, {

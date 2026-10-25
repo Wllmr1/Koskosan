@@ -1,5 +1,6 @@
 import { InvoiceKind, InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import FlowShell from "@/components/site/FlowShell";
 
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
@@ -21,36 +22,32 @@ export default async function PaidPage({ params }: { params: Promise<{ code: str
   const chatLink = "/?chat=1";
 
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20 }}>
-      <div className="card" style={{ padding: "40px 28px", textAlign: "center", width: "min(420px,100%)" }}>
-        <div
-          style={{
-            width: 62, height: 62, borderRadius: "50%", display: "grid", placeItems: "center",
-            margin: "0 auto 16px", fontSize: 28,
-            background: paid ? "var(--ok-soft)" : "var(--gold-soft)",
-            color: paid ? "var(--ok)" : "var(--gold)",
-          }}
-        >
-          {paid ? "✓" : "…"}
-        </div>
-        <h1 style={{ fontSize: 20, marginBottom: 8 }}>{paid ? "Pembayaran diterima" : "Pembayaran sedang diproses"}</h1>
-        <p className="muted" style={{ marginBottom: 22 }}>
+    <FlowShell>
+      <div className="center">
+        <div className={paid ? "done-mark" : "done-mark wait"}>{paid ? "✓" : "…"}</div>
+        <div className="lbl">{paid ? "Pembayaran diterima" : "Pembayaran sedang diproses"}</div>
+        <h1 style={{ fontSize: "clamp(30px,4vw,44px)", margin: "12px 0 18px" }}>
+          {paid ? "Terima kasih." : "Mohon tunggu sebentar."}
+        </h1>
+        <p>
           {paid
             ? `Terima kasih kak. Konfirmasi untuk ${invoice!.code} sudah kami kirim ke chat.`
             : "Biasanya hanya beberapa detik. Konfirmasi akan masuk ke chat begitu pembayaran tercatat."}
         </p>
         {newRenter ? (
-          <div style={{ display: "grid", gap: 10 }}>
-            <a className="btn btn-pri" href="/masuk">Masuk ke akun penghuni</a>
-            <a className="btn" href={chatLink}>Kembali ke chat</a>
-            <p className="small muted" style={{ margin: 0 }}>Masuk pakai nomor HP dan password yang tadi kakak buat.</p>
-          </div>
+          <>
+            <div className="actions">
+              <a className="btn pri" href="/masuk">Masuk ke akun penghuni</a>
+              <a className="btn" href={chatLink}>Kembali ke chat</a>
+            </div>
+            <p style={{ color: "var(--ink-3)", fontSize: 14 }}>Masuk pakai nomor HP dan password yang tadi kakak buat.</p>
+          </>
         ) : (
-          <a className="btn btn-pri" href={chatLink} style={{ width: "100%" }}>
-            Kembali ke chat
-          </a>
+          <div className="actions">
+            <a className="btn pri" href={chatLink}>Kembali ke chat</a>
+          </div>
         )}
       </div>
-    </main>
+    </FlowShell>
   );
 }

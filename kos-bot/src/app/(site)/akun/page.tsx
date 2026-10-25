@@ -79,7 +79,7 @@ export default async function AccountPage() {
                   </span>
                 </div>
                 <span className="bill-amount">{rp(b.remaining)}</span>
-                <a className="btn btn-pri" href={`/p/${b.code}`}>Bayar</a>
+                <a className="btn pri" href={`/p/${b.code}`}>Bayar</a>
               </div>
             ))}
           </div>

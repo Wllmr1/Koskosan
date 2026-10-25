@@ -4,6 +4,7 @@ import { buildContractData, findApplicationByToken, onboardingAmount } from "@/l
 import { contractClauses, contractHash } from "@/lib/contract";
 import { decrypt } from "@/lib/crypto";
 import { rp } from "@/lib/money";
+import FlowShell from "@/components/site/FlowShell";
 import ApplyFlow from "./ApplyFlow";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,6 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
         propertyName={settings.name}
         reference={app.reference}
         room={{
-          code: app.room.code,
           type: app.room.roomType.name,
           size: app.room.roomType.sizeLabel,
           price: rp(app.room.roomType.monthlyPrice),
@@ -72,34 +72,16 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "start center", padding: "28px 16px 56px" }}>
-      <div style={{ width: "min(640px,100%)" }}>{children}</div>
-    </main>
-  );
+  return <FlowShell>{children}</FlowShell>;
 }
 
 function Expired() {
   return (
     <Shell>
-      <div className="card" style={{ padding: "40px 28px", textAlign: "center" }}>
-        <div
-          style={{
-            width: 62,
-            height: 62,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            margin: "0 auto 16px",
-            background: "var(--bad-soft)",
-            color: "var(--bad)",
-            fontSize: 28,
-          }}
-        >
-          !
-        </div>
-        <h1 style={{ fontSize: 20, marginBottom: 8 }}>Link sudah tidak berlaku</h1>
-        <p className="muted">Link pendaftaran berlaku 48 jam. Minta link baru lewat WhatsApp ya kak.</p>
+      <div className="center">
+        <div className="done-mark bad">!</div>
+        <h1 style={{ fontSize: "clamp(30px,4vw,44px)", marginBottom: 12 }}>Link sudah tidak berlaku</h1>
+        <p>Link pendaftaran berlaku 48 jam. Minta link baru lewat WhatsApp ya kak.</p>
       </div>
     </Shell>
   );
@@ -107,24 +89,10 @@ function Expired() {
 
 function Done({ title, message }: { title: string; message: string }) {
   return (
-    <div className="card" style={{ padding: "40px 28px", textAlign: "center" }}>
-      <div
-        style={{
-          width: 62,
-          height: 62,
-          borderRadius: "50%",
-          display: "grid",
-          placeItems: "center",
-          margin: "0 auto 16px",
-          background: "var(--ok-soft)",
-          color: "var(--ok)",
-          fontSize: 28,
-        }}
-      >
-        ✓
-      </div>
-      <h1 style={{ fontSize: 20, marginBottom: 8 }}>{title}</h1>
-      <p className="muted">{message}</p>
+    <div className="center">
+      <div className="done-mark">✓</div>
+      <h1 style={{ fontSize: "clamp(30px,4vw,44px)", marginBottom: 12 }}>{title}</h1>
+      <p>{message}</p>
     </div>
   );
 }
