@@ -9,7 +9,7 @@ import { hashPassword, passwordProblem } from "@/lib/password";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { clientIp } from "@/lib/http";
-import { buildContractData, findApplicationByToken, onboardingAmount, roomOpenOn, termMonths } from "@/lib/application";
+import { buildContractData, findApplicationByToken, firstOpenRoomOfType, onboardingAmount, roomOpenOn, termMonths } from "@/lib/application";
 import { buildContractPdf, contractHash } from "@/lib/contract";
 import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
 
@@ -66,11 +66,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Re-submission is allowed (they went back a step), but the room must still be free.
-  if (!(await roomOpenOn(app.id, app.roomId, moveIn))) {
-    return NextResponse.json(
-      { error: "Maaf, kamar ini baru saja diambil orang lain. Minta pilihan kamar lain lewat WhatsApp ya kak." },
-      { status: 409 }
-    );
+  // If someone else took it first, move this application to another room of the same type.
+  let roomId = app.roomId;
+  if (!(await roomOpenOn(app.id, roomId, moveIn))) {
+    const other = await firstOpenRoomOfType({ id: app.room.roomTypeId }, moveIn);
+    if (!other) {
+      const type = app.room.roomType;
+      return NextResponse.json(
+        { error: `Maaf, kamar ${type.name} untuk tanggal itu sudah penuh. Lihat tanggal lain di /kamar/${type.slug}.` },
+        { status: 409 }
+      );
+    }
+    roomId = other.id;
   }
 
   // Name must look like a full name
@@ -112,6 +119,7 @@ export async function POST(req: NextRequest) {
   await prisma.application.update({
     where: { id: app.id },
     data: {
+      roomId,
       fullName: data.fullName,
       phoneE164: phone,
       dateOfBirth: new Date(`${data.dateOfBirth}T00:00:00Z`),
@@ -126,7 +134,7 @@ export async function POST(req: NextRequest) {
 
   // Hold the room while they read and sign.
   await prisma.room.updateMany({
-    where: { id: app.roomId, status: RoomStatus.AVAILABLE },
+    where: { id: roomId, status: RoomStatus.AVAILABLE },
     data: { status: RoomStatus.BOOKED },
   });
 
@@ -171,7 +179,7 @@ export async function PUT(req: NextRequest) {
   if (app.status === ApplicationStatus.COMPLETED) {
     return NextResponse.json({ error: "Sudah selesai." }, { status: 409 });
   }
-  if (!(await roomOpenOn(app.id, app.roomId, app.moveInDate ?? new Date()))) {
+  if (!(await roomOpenOn(app.id, app.roomId, app.moveInDate ?? new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)))) {
     return NextResponse.json({ error: "Maaf, kamar ini sudah tidak tersedia." }, { status: 409 });
   }
 

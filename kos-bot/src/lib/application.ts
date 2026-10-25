@@ -67,6 +67,18 @@ export async function roomOpenOn(applicationId: string | null, roomId: string, m
   return !(await roomHeldByAnother(applicationId, roomId));
 }
 
+/** First visible room of a type (by sortOrder, then code) that is open on the move-in date. */
+export async function firstOpenRoomOfType(type: { slug: string } | { id: string }, moveIn: Date) {
+  const candidates = await prisma.room.findMany({
+    where: { hidden: false, roomType: type },
+    orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
+  });
+  for (const c of candidates) {
+    if (await roomOpenOn(null, c.id, moveIn)) return c;
+  }
+  return null;
+}
+
 /**
  * Starts the sign-up flow for a room TYPE: the system picks the first room
  * (by sortOrder, then code) that is open on the move-in date.
@@ -77,19 +89,9 @@ export async function createApplicationForType(opts: {
   plan: LeasePlan;
   moveIn: Date;
 }) {
-  const candidates = await prisma.room.findMany({
-    where: { hidden: false, roomType: { slug: opts.typeSlug } },
-    orderBy: [{ sortOrder: "asc" }, { code: "asc" }],
-  });
-  if (!candidates.length) throw new ApplicationError("not_found", `No room type called ${opts.typeSlug}.`);
-
-  let room = null;
-  for (const c of candidates) {
-    if (await roomOpenOn(null, c.id, opts.moveIn)) {
-      room = c;
-      break;
-    }
-  }
+  const known = await prisma.room.count({ where: { hidden: false, roomType: { slug: opts.typeSlug } } });
+  if (!known) throw new ApplicationError("not_found", `No room type called ${opts.typeSlug}.`);
+  const room = await firstOpenRoomOfType({ slug: opts.typeSlug }, opts.moveIn);
   if (!room) throw new ApplicationError("unavailable", `No ${opts.typeSlug} room is open on that date.`);
 
   const { raw, hash } = newToken();

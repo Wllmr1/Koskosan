@@ -26,6 +26,25 @@ async function typeWith(rooms: { status?: RoomStatus; availableOn?: Date }[]) {
   return { slug: first.roomType.slug, rooms: made };
 }
 
+async function details(token: string, moveInDate: string) {
+  const form = new FormData();
+  const fields: Record<string, string> = {
+    token,
+    fullName: "Budi Santoso",
+    phone: "081234567890",
+    dateOfBirth: "1999-01-01",
+    idNumber: "3171234567890001",
+    moveInDate,
+    password: "kata-sandi-aman-9",
+    passwordConfirm: "kata-sandi-aman-9",
+  };
+  for (const [k, v] of Object.entries(fields)) form.set(k, v);
+  form.set("ktp", new File([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])], "ktp.jpg", { type: "image/jpeg" }));
+  return submitDetails(
+    new NextRequest("http://localhost:3000/api/apply", { method: "POST", headers: { "x-real-ip": `10.9.${uniq()}` }, body: form })
+  );
+}
+
 describe("createApplicationForType", () => {
   it("hands out the first open room, then the next once details are submitted, then runs out", async () => {
     const { slug, rooms } = await typeWith([{}, {}]);
@@ -50,21 +69,30 @@ describe("createApplicationForType", () => {
     });
   });
 
-  it("the last free room goes to whoever submits details first; the other is then turned away", async () => {
-    const { slug, rooms } = await typeWith([{}]);
+  it("two starts for the last free room: the first to submit keeps it, the second is moved to another room or told it is full", async () => {
+    const { slug, rooms } = await typeWith([{}, {}]);
     const moveIn = date(tomorrow());
     const first = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn });
     const second = await createApplicationForType({ contactId: null, typeSlug: slug, plan: "MONTHLY", moveIn });
     expect(first.room.id).toBe(rooms[0].id);
     expect(second.room.id).toBe(rooms[0].id);
 
-    const [f, s] = await Promise.all([
-      prisma.application.findUniqueOrThrow({ where: { tokenHash: sha256(first.token) } }),
-      prisma.application.findUniqueOrThrow({ where: { tokenHash: sha256(second.token) } }),
-    ]);
-    await prisma.application.update({ where: { id: f.id }, data: { status: ApplicationStatus.DETAILS_SUBMITTED } });
-    expect(await roomOpenOn(s.id, rooms[0].id, moveIn)).toBe(false);
-    expect(await roomOpenOn(f.id, rooms[0].id, moveIn)).toBe(true);
+    expect((await details(first.token, tomorrow())).status).toBe(200);
+    const res = await details(second.token, tomorrow());
+    expect(res.status).toBe(200);
+    const moved = await prisma.application.findUniqueOrThrow({ where: { tokenHash: sha256(second.token) } });
+    expect(moved.roomId).toBe(rooms[1].id);
+    expect((await prisma.room.findUniqueOrThrow({ where: { id: rooms[1].id } })).status).toBe(RoomStatus.BOOKED);
+
+    // A third person who started earlier now finds the type full.
+    const { slug: slug2 } = await typeWith([{}]);
+    const a = await createApplicationForType({ contactId: null, typeSlug: slug2, plan: "MONTHLY", moveIn });
+    const b = await createApplicationForType({ contactId: null, typeSlug: slug2, plan: "MONTHLY", moveIn });
+    expect((await details(a.token, tomorrow())).status).toBe(200);
+    const typeName = (await prisma.roomType.findUniqueOrThrow({ where: { id: a.room.roomTypeId } })).name;
+    const full = await details(b.token, tomorrow());
+    expect(full.status).toBe(409);
+    expect((await full.json()).error).toBe(`Maaf, kamar ${typeName} untuk tanggal itu sudah penuh. Lihat tanggal lain di /kamar/${slug2}.`);
   });
 
   it("books ahead on an occupied room from the date it frees up", async () => {
