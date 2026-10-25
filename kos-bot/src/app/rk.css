@@ -207,3 +207,23 @@
 .rk main{min-width:0}
 .rk main img,.rk main table,.rk main pre{max-width:100%}
 .rk .head-row>*{min-width:0}
+
+/* /kamar filters as links, type page extras */
+.rk .filters a{display:inline-flex;align-items:center;min-height:44px;border-bottom:1px solid transparent;color:var(--ink-3);font-size:12px;letter-spacing:.22em;text-transform:uppercase;text-decoration:none}
+.rk .filters a.on{color:var(--ink);border-bottom-color:var(--ink)}
+.rk .info h1{font-size:40px}
+@media (max-width:640px){.rk .info h1{font-size:32px}}
+.rk .cover-empty{display:flex;align-items:center;justify-content:center;height:440px;color:var(--ink-3);font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+@media (max-width:640px){.rk .cover img,.rk .cover-empty{height:300px}}
+.rk .thumbs button{display:block;padding:0;border:0;background:none;opacity:.62;cursor:pointer}
+.rk .thumbs button.on,.rk .thumbs button:hover{opacity:1}
+.rk .thumbs button img{opacity:1}
+.rk .opts{flex-direction:column;align-items:stretch}
+.rk .opts label{position:relative;display:block}
+.rk .opts input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.rk .opts label>span{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:1px solid var(--line-2);background:var(--bg);font-size:14.5px;text-align:left}
+.rk .opts label small{color:var(--ink-3);font-size:13.5px}
+.rk .opts label b{font-weight:500;font-variant-numeric:tabular-nums}
+.rk .opts input:checked+span{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.rk .opts input:focus-visible+span{outline:2px solid var(--ink);outline-offset:2px}
+.rk .rent .form label{margin-top:0}

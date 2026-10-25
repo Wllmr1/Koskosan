@@ -1,15 +1,3 @@
-import type { Photo, Room, RoomType } from "@prisma/client";
-import { RoomStatus } from "@prisma/client";
-import { niceDate, rp } from "@/lib/money";
-import { PhotoSlot } from "./PhotoSlot";
-
-const STATUS_LABEL: Record<RoomStatus, string> = {
-  AVAILABLE: "Tersedia",
-  BOOKED: "Sudah dibooking",
-  OCCUPIED: "Terisi",
-  MAINTENANCE: "Perbaikan",
-};
-
 /** Title block at the top of every inner page. */
 export function PageHead({ title, sub }: { title: string; sub?: string }) {
   return (
@@ -47,35 +35,6 @@ export function Fact({ value, label }: { value: string; label: string }) {
       <strong style={{ fontFamily: "var(--display)", fontSize: 22, display: "block" }}>{value}</strong>
       <span className="small muted">{label}</span>
     </div>
-  );
-}
-
-/** A room in a list: cover photo (or placeholder), key facts, availability. Links to the room page. */
-export function RoomCard({ room }: { room: Room & { roomType: RoomType & { photos: Photo[] } } }) {
-  return (
-    <a href={`/kamar/${encodeURIComponent(room.code)}`} className="room-card">
-      <PhotoSlot photo={room.roomType.photos[0] ?? null} alt={`Kamar ${room.code}`} />
-      <div className="room-card-head">
-        <span className="room-card-name">Kamar {room.code}</span>
-        <span className="room-card-type">{room.roomType.name}</span>
-      </div>
-      <p className="room-price">
-        {rp(room.roomType.monthlyPrice)} <span>per bulan</span>
-      </p>
-      <div className="small muted">
-        {room.roomType.sizeLabel}, lantai {room.floor}, {room.roomType.bathroom.toLowerCase()}
-      </div>
-      <div className="small muted" style={{ marginTop: 2 }}>{room.roomType.extras}</div>
-      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span className={`pill ${room.status === "AVAILABLE" ? "pill-ok" : room.status === "BOOKED" ? "pill-warn" : "pill-mute"}`}>
-          {STATUS_LABEL[room.status]}
-        </span>
-        <span className="small muted">
-          {room.status === "AVAILABLE" ? "bisa masuk sekarang" : room.availableOn ? `kosong ${niceDate(room.availableOn)}` : ""}
-        </span>
-        {room.status === "AVAILABLE" && <span className="room-card-cta">Sewa</span>}
-      </div>
-    </a>
   );
 }
 

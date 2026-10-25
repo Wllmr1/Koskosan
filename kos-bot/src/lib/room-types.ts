@@ -56,3 +56,28 @@ export async function getRoomType(slug: string): Promise<TypeCard | null> {
   });
   return type ? toCard(type) : null;
 }
+
+export type KamarPath = { kind: "type"; type: TypeCard } | { kind: "redirect"; to: string };
+
+/** What /kamar/<param> means: a type slug, an old room code (sent to its type), or nothing. */
+export async function resolveKamarPath(param: string): Promise<KamarPath | null> {
+  if (!/^[A-Za-z0-9-]{1,60}$/.test(param)) return null;
+  const type = await getRoomType(param);
+  if (type) return { kind: "type", type };
+  const room = await prisma.room.findFirst({
+    where: { code: param.toUpperCase(), hidden: false },
+    select: { roomType: { select: { slug: true } } },
+  });
+  return room ? { kind: "redirect", to: `/kamar/${room.roomType.slug}` } : null;
+}
+
+/** A YYYY-MM-DD string that is a real calendar date, else null. */
+export function isoDateOrNull(value: unknown): string | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value ? value : null;
+}
+
+export function planOrNull(value: unknown): "bulanan" | "tahunan" | null {
+  return value === "bulanan" || value === "tahunan" ? value : null;
+}
