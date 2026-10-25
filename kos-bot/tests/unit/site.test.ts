@@ -34,6 +34,19 @@ describe("photo slots", () => {
   });
 });
 
+/** Selectors (comma-split) that do not start with ".rk" as a whole token. Looks at every rule, also the first one inside @media. */
+function unscopedSelectors(source: string): string[] {
+  const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  const found: string[] = [];
+  for (const m of css.matchAll(/(?:^|[{};])\s*([^{};@][^{};]*)\{/g)) {
+    if (m[1].trim().startsWith("@")) continue;
+    for (const part of m[1].split(",")) {
+      if (!/^\.rk(?=$|[\s.:\[,])/.test(part.trim())) found.push(part.trim());
+    }
+  }
+  return found;
+}
+
 describe("site shell", () => {
   it("keeps the menu order", () => {
     expect(SITE_NAV.map((n) => n.label)).toEqual(["Beranda", "Kamar", "Fasilitas", "Biaya", "Lokasi", "Aturan", "FAQ"]);
@@ -44,11 +57,16 @@ describe("site shell", () => {
     expect(css).not.toContain("prefers-color-scheme");
   });
 
-  it("scopes every stylesheet rule under .rk", () => {
-    const css = readFileSync(join(process.cwd(), "src/app/rk.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const selectors = [...css.matchAll(/(?:^|[}\n])\s*([^{}@\n][^{}]*)\{/g)].map((m) => m[1].trim());
-    expect(selectors.length).toBeGreaterThan(50);
-    for (const sel of selectors) for (const part of sel.split(",")) expect(part.trim().startsWith(".rk")).toBe(true);
+  it("scopes every stylesheet rule under .rk, including the first rule inside @media", () => {
+    const css = readFileSync(join(process.cwd(), "src/app/rk.css"), "utf8");
+    expect(css.length).toBeGreaterThan(1000);
+    expect(unscopedSelectors(css)).toEqual([]);
+    expect(css).toContain(".rk [hidden]");
+  });
+
+  it("the scope check catches an unscoped first rule in a media block and look-alike prefixes", () => {
+    expect(unscopedSelectors("@media (max-width:640px){.foo{color:red}.rk .a{color:red}}")).toEqual([".foo"]);
+    expect(unscopedSelectors(".rkfoo{color:red}.rk .a,.rk.b,.rk:hover{color:red}")).toEqual([".rkfoo"]);
   });
 
   it("puts the tagline under the wordmark, or the tagline alone when it is long", () => {
