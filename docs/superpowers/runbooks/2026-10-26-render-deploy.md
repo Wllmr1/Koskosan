@@ -16,8 +16,8 @@ Expect roughly US$15–20 per month in total (check Render's pricing page; it ch
 ## Steps
 
 1. **Sign up** at render.com with your GitHub account and add a payment card (Render → Account → Billing).
-2. **Push the code** to GitHub (`main` of `bendarrelj-beep/chatbotDEMO`). Claude does this once you approve.
-3. In Render: **New → Blueprint**, choose the `chatbotDEMO` repository, branch `main`. Render reads `render.yaml` and lists the four items above.
+2. **Push the code** to GitHub (`main` of `Wllmr1/Koskosan`). Claude does this once you approve.
+3. In Render: **New → Blueprint**, choose the `Koskosan` repository, branch `main`. Render reads `render.yaml` and lists the four items above.
 4. Render asks for the values marked `sync: false`:
    - `APP_URL`: `https://roemahkoe.onrender.com` (the address Render shows for the web service; if the name is taken it adds letters — use exactly what Render shows). Later, your own domain.
    - `ENCRYPTION_KEY`: copy the line from `~/Documents/roemahkoe-secrets/render-encryption-key.txt`. **Keep this file safe:** without it, the encrypted KTP numbers in the database can never be read again.
