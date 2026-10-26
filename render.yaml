@@ -1,0 +1,98 @@
+# Render Blueprint: everything the kos website needs, in Singapore.
+# Render → New → Blueprint → pick this repository. Values marked `sync: false`
+# are asked for once in the Render dashboard (see docs/superpowers/runbooks/2026-10-26-render-deploy.md).
+
+databases:
+  - name: roemahkoe-db
+    region: singapore
+    plan: basic-256mb
+    databaseName: kos
+    user: kos
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: roemahkoe
+    runtime: docker
+    region: singapore
+    plan: starter # a persistent disk needs a paid instance
+    rootDir: kos-bot
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # No migrations folder: bring the tables up to the schema. Without
+    # --accept-data-loss this refuses any change that would drop data.
+    preDeployCommand: npx prisma db push --skip-generate
+    healthCheckPath: /masuk
+    disk:
+      name: storage # photos, KTP scans, signatures, contracts
+      mountPath: /app/storage
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: roemahkoe-db
+          property: connectionString
+      - key: STORAGE_DRIVER
+        value: local
+      - key: STORAGE_LOCAL_DIR
+        value: /app/storage
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: APP_URL # e.g. https://roemahkoe.onrender.com, later your own domain
+        sync: false
+      - key: ENCRYPTION_KEY # 64 hex characters; keep a copy somewhere safe
+        sync: false
+      - key: ADMIN_PASSWORD # the owner's dashboard password
+        sync: false
+      - key: OWNER_EMAIL # the owner's dashboard login email
+        sync: false
+      - key: OWNER_NAME
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  # The daily jobs run inside the web app (they need its disk), so these only
+  # call its cron addresses with the shared secret.
+  - type: cron
+    name: roemahkoe-reminders
+    runtime: image
+    image:
+      url: docker.io/curlimages/curl:8.10.1
+    region: singapore
+    plan: starter
+    schedule: "30 2 * * *" # 09:30 WIB
+    dockerCommand: sh -c 'curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/reminders"'
+    envVars:
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: roemahkoe
+          envVarKey: CRON_SECRET
+      - key: APP_URL
+        fromService:
+          type: web
+          name: roemahkoe
+          envVarKey: APP_URL
+
+  - type: cron
+    name: roemahkoe-purge
+    runtime: image
+    image:
+      url: docker.io/curlimages/curl:8.10.1
+    region: singapore
+    plan: starter
+    schedule: "0 * * * *" # hourly: delete expired chats and documents
+    dockerCommand: sh -c 'curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/purge"'
+    envVars:
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: roemahkoe
+          envVarKey: CRON_SECRET
+      - key: APP_URL
+        fromService:
+          type: web
+          name: roemahkoe
+          envVarKey: APP_URL
