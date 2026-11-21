@@ -1,10 +1,12 @@
-import { ApplicationStatus, LeasePlan, RoomStatus } from "@prisma/client";
+import { ApplicationStatus, InvoiceKind, InvoiceStatus, LeasePlan, RoomStatus } from "@prisma/client";
+import type { PropertySetting } from "@prisma/client";
 import { prisma } from "./prisma";
 import { newToken, sha256 } from "./crypto";
 import { addMonths } from "./money";
 import { deleteObject } from "./storage";
 import type { ContractData } from "./contract";
 import { contractLabel, type ContractMonths } from "./contract-terms";
+import type { TermsInput } from "./terms";
 
 export const APPLICATION_TTL_MS = 48 * 3_600_000;
 
@@ -145,9 +147,31 @@ export async function findApplicationByToken(rawToken: string) {
 }
 
 /**
+ * The proof-upload link the assistant sends with the bank details. It is a
+ * separate token from the application page's, so sending it in chat never
+ * exposes the page with the person's details.
+ */
+export async function findApplicationByUploadToken(rawToken: string) {
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(rawToken)) return null;
+  const app = await prisma.application.findFirst({
+    where: { uploadTokenHash: sha256(rawToken) },
+    include: { room: { include: { roomType: true } }, contact: true },
+  });
+  if (!app || app.expiresAt < new Date()) return null;
+  return app;
+}
+
+/** A fresh proof-upload link for an application (the previous one stops working). */
+export async function newUploadLink(applicationId: string): Promise<string> {
+  const { raw, hash } = newToken();
+  await prisma.application.update({ where: { id: applicationId }, data: { uploadTokenHash: hash } });
+  return `/bukti/${raw}`;
+}
+
+/**
  * True when someone else's live application is already holding this room
- * (they submitted details, or signed and are paying). Prevents two people
- * signing and paying for the same room.
+ * (they submitted details, are paying the deposit, or the deposit is being
+ * checked or was accepted). Prevents two people paying for the same room.
  */
 export async function roomHeldByAnother(applicationId: string | null, roomId: string): Promise<boolean> {
   const other = await prisma.application.findFirst({
@@ -155,7 +179,15 @@ export async function roomHeldByAnother(applicationId: string | null, roomId: st
       roomId,
       ...(applicationId ? { id: { not: applicationId } } : {}),
       expiresAt: { gt: new Date() },
-      status: { in: [ApplicationStatus.DETAILS_SUBMITTED, ApplicationStatus.SIGNED, ApplicationStatus.AWAITING_PAYMENT] },
+      status: {
+        in: [
+          ApplicationStatus.DETAILS_SUBMITTED,
+          ApplicationStatus.SIGNED,
+          ApplicationStatus.AWAITING_PAYMENT,
+          ApplicationStatus.PROOF_SUBMITTED,
+          ApplicationStatus.VERIFIED,
+        ],
+      },
     },
     select: { id: true },
   });
@@ -180,6 +212,21 @@ export function onboardingAmount(monthlyPrice: number, plan: LeasePlan, yearlyMo
 
 export function termLabel(app: { termMonths: number | null; plan: LeasePlan }, minMonths: number) {
   return contractLabel(applicationMonths(app, minMonths));
+}
+
+/** What the Terms & Conditions page needs: the terms as they would apply to this application today. */
+export function termsInputFor(
+  app: { moveInDate: Date | null; termMonths: number | null; plan: LeasePlan; room: { roomType: { name: string; monthlyPrice: number } } },
+  settings: PropertySetting
+): TermsInput {
+  return {
+    settings,
+    roomType: app.room.roomType.name,
+    monthlyRent: app.room.roomType.monthlyPrice,
+    deposit: app.room.roomType.monthlyPrice * settings.depositMonths,
+    startDate: app.moveInDate ?? new Date(),
+    termLabel: termLabel(app, settings.minMonths),
+  };
 }
 
 /** Everything the contract needs, assembled from the database. */
@@ -238,6 +285,11 @@ export async function expireStaleApplications() {
     prisma.application.updateMany({
       where: { id: { in: stale.map((a) => a.id) } },
       data: { status: ApplicationStatus.EXPIRED },
+    }),
+    // A deposit nobody paid in time is no longer owed.
+    prisma.invoice.updateMany({
+      where: { applicationId: { in: stale.map((a) => a.id) }, kind: InvoiceKind.DEPOSIT, status: InvoiceStatus.UNPAID },
+      data: { status: InvoiceStatus.EXPIRED },
     }),
     prisma.room.updateMany({
       where: { id: { in: stale.map((a) => a.roomId) }, status: RoomStatus.BOOKED },

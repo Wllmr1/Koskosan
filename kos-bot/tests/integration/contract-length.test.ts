@@ -2,30 +2,28 @@ import { ApplicationStatus, InvoiceKind } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, sha256 } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
-import { buildContractData, createApplication, createApplicationForType } from "@/lib/application";
-import { contractClauses, contractHash } from "@/lib/contract";
+import { createApplication, createApplicationForType, termsInputFor } from "@/lib/application";
+import { termsClauses, termsHash } from "@/lib/terms";
 import { recordPayment } from "@/lib/payments";
-import { PUT as sign } from "@/app/api/apply/route";
+import { PUT as acceptTerms } from "@/app/api/apply/route";
 import { TOOLS } from "@/lib/chat/tools";
 import { makeCtx, makeRoom, uniq } from "../helpers";
 
 afterAll(() => prisma.$disconnect());
 
-// A minimal PNG-looking data URL; the route only checks the prefix and a minimum size.
-const SIGNATURE = `data:image/png;base64,${Buffer.alloc(400, 1).toString("base64")}`;
-
-/** An application that has submitted its details and is ready to sign. */
-async function readyToSign(termMonths: number | null, plan: "MONTHLY" | "YEARLY" = "MONTHLY") {
+/** An application that has submitted its details and is ready to agree to the terms. */
+async function readyForTerms(termMonths: number | null) {
   const id = uniq();
   const room = await makeRoom();
+  const raw = `${"a".repeat(30)}${id}`.slice(0, 40);
   const app = await prisma.application.create({
     data: {
       reference: `APP-L${id}`,
-      tokenHash: `token-l-${id}`,
+      tokenHash: sha256(raw),
       roomId: room.id,
-      plan,
+      plan: "MONTHLY",
       termMonths,
       status: ApplicationStatus.DETAILS_SUBMITTED,
       fullName: "Penyewa Uji",
@@ -34,58 +32,49 @@ async function readyToSign(termMonths: number | null, plan: "MONTHLY" | "YEARLY"
       idNumberEnc: encrypt("3171234567890001"),
       idLast4: "0001",
       moveInDate: new Date("2027-01-15"),
-      passwordHash: await hashPassword("password-penyewa-1"),
       expiresAt: new Date(Date.now() + 86_400_000),
     },
+    include: { room: { include: { roomType: true } } },
   });
-  return { room, app };
+  return { room, app, raw };
 }
 
-async function signIt(appId: string, token: string) {
-  const data = await buildContractData(appId, "3171234567890001");
-  return sign(
+async function agree(token: string, shownHash: string) {
+  return acceptTerms(
     new NextRequest("http://localhost:3000/api/apply", {
       method: "PUT",
       headers: { "x-real-ip": `10.11.${uniq()}`, "content-type": "application/json" },
-      body: JSON.stringify({ token, signature: SIGNATURE, agreed: "true", shownHash: contractHash(data) }),
+      body: JSON.stringify({ token, agreed: true, shownHash }),
     })
   );
 }
 
-describe("signing a contract with a chosen length", () => {
-  it("keeps the chosen length, bills one month of rent plus the deposit, and shows the length in the contract", async () => {
-    const { room, app } = await readyToSign(12);
-    // findApplicationByToken hashes the raw token, so give it one that hashes to the stored value.
-    const raw = `${"a".repeat(30)}${uniq()}`.slice(0, 40);
-    const { sha256 } = await import("@/lib/crypto");
-    await prisma.application.update({ where: { id: app.id }, data: { tokenHash: sha256(raw) } });
+describe("agreeing to the terms with a chosen length", () => {
+  it("keeps the chosen length, bills only the deposit, and shows the length in the terms", async () => {
+    const { room, app, raw } = await readyForTerms(12);
+    const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
+    const terms = termsInputFor(app, settings);
+    expect(termsClauses(terms)[0].body).toContain("kontrak 1 tahun");
 
-    const res = await signIt(app.id, raw);
+    const res = await agree(raw, termsHash(terms));
     expect(res.status).toBe(200);
 
-    const signed = await prisma.application.findUniqueOrThrow({ where: { id: app.id } });
-    const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
+    const agreed = await prisma.application.findUniqueOrThrow({ where: { id: app.id } });
     const price = room.roomType.monthlyPrice;
-    expect(signed.signedTermMonths).toBe(12);
-    expect(signed.amountDue).toBe(price + price * settings.depositMonths);
-    const invoice = await prisma.invoice.findFirstOrThrow({ where: { applicationId: app.id, kind: InvoiceKind.ONBOARDING } });
-    expect(invoice.description).toContain("sewa 1 bulan + deposit");
-
-    const clauses = contractClauses(await buildContractData(app.id, "3171234567890001"));
-    expect(clauses[1].body).toContain("(1 tahun)");
-    expect(clauses[2].body).not.toMatch(/tahunan/i);
+    expect(agreed.status).toBe(ApplicationStatus.AWAITING_PAYMENT);
+    expect(agreed.signedTermMonths).toBe(12);
+    expect(agreed.termsAcceptedAt).not.toBeNull();
+    expect(agreed.amountDue).toBe(price * settings.depositMonths);
+    const invoice = await prisma.invoice.findFirstOrThrow({ where: { applicationId: app.id } });
+    expect(invoice.kind).toBe(InvoiceKind.DEPOSIT);
+    expect(invoice.amount).toBe(price * settings.depositMonths);
   });
 
-  it("an older yearly application still pays twelve months for twelve", async () => {
-    const { room, app } = await readyToSign(null, "YEARLY");
-    const raw = `${"b".repeat(30)}${uniq()}`.slice(0, 40);
-    const { sha256 } = await import("@/lib/crypto");
-    await prisma.application.update({ where: { id: app.id }, data: { tokenHash: sha256(raw) } });
-    expect((await signIt(app.id, raw)).status).toBe(200);
-    const signed = await prisma.application.findUniqueOrThrow({ where: { id: app.id } });
-    const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
-    expect(signed.signedTermMonths).toBe(12);
-    expect(signed.amountDue).toBe(room.roomType.monthlyPrice * (settings.yearlyMonths + settings.depositMonths));
+  it("refuses terms that changed since the page was shown", async () => {
+    const { raw } = await readyForTerms(6);
+    const res = await agree(raw, "0".repeat(64));
+    expect(res.status).toBe(409);
+    expect((await res.json()).reload).toBe(true);
   });
 });
 

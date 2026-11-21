@@ -2,7 +2,7 @@ import { ContactType, InvoiceKind, InvoiceStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { log } from "./logger";
 import { expireStaleApplications, scrubClosedApplications } from "./application";
-import { createLocalInvoice, ensurePaymentUrl } from "./billing";
+import { createLocalInvoice } from "./billing";
 import { niceDate, rp } from "./money";
 import { sendTemplateWithUrlButton, waIdFromE164 } from "./whatsapp";
 import { deleteObject } from "./storage";
@@ -132,7 +132,6 @@ async function issueUpcomingRent(dueDay: number, now: Date): Promise<number> {
 
     if (whatsappEnabled()) {
       try {
-        await ensurePaymentUrl(invoice.id); // warm the gateway page before we link to it
         await sendTemplateWithUrlButton(
           waIdFromE164(lease.tenant.phoneE164),
           "rent_due_reminder",
@@ -171,7 +170,6 @@ async function remindUnpaid(dueDay: number, today: Date): Promise<number> {
     if (!tenant || !room) continue;
 
     try {
-      await ensurePaymentUrl(invoice.id);
       await sendTemplateWithUrlButton(
         waIdFromE164(tenant.phoneE164),
         "rent_overdue",

@@ -47,8 +47,8 @@ describe("feature flags", () => {
     expect(fakePaymentsAllowed({ ...base, XENDIT_SECRET_KEY: "k", XENDIT_WEBHOOK_TOKEN: "t" }, "development")).toBe(false);
   });
 
-  it("production refuses to start without Xendit", () => {
-    expect(() => assertProductionReady(base, "production")).toThrow(/XENDIT/);
+  it("production starts without Xendit (manual transfers)", () => {
+    expect(() => assertProductionReady(base, "production")).not.toThrow();
     expect(() => assertProductionReady(base, "development")).not.toThrow();
   });
 });

@@ -45,6 +45,26 @@ const TEMPLATES: Template[] = [
     ],
   },
   {
+    name: "deposit_verified",
+    category: "UTILITY",
+    components: [
+      { type: "BODY",
+        text: "Halo kak {{1}} 👋 Deposit untuk pendaftaran {{2}} sudah kami verifikasi ✅ Buat akun penghuni lewat tombol di bawah untuk lihat detail kamar dan tagihan. Link berlaku 7 hari.",
+        example: { body_text: [["Yoga", "APP-1043"]] } },
+      { type: "BUTTONS",
+        buttons: [{ type: "URL", text: "Buat akun", url: `${process.env.APP_URL ?? "https://example.com"}/atur-password/{{1}}`, example: [`${process.env.APP_URL}/atur-password/abc123`] }] },
+    ],
+  },
+  {
+    name: "payment_rejected",
+    category: "UTILITY",
+    components: [
+      { type: "BODY",
+        text: "Halo kak {{1}}, bukti transfer untuk {{2}} belum bisa kami terima: {{3}}. Silakan kirim ulang bukti transfernya lewat website ya 🙏",
+        example: { body_text: [["Yoga", "INV-DEP-2611-0012", "nominal kurang Rp50.000"]] } },
+    ],
+  },
+  {
     name: "payment_received",
     category: "UTILITY",
     components: [

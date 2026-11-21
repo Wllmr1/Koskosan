@@ -37,7 +37,7 @@ export default async function LoginPage({
       ) : (
         <form method="post" action="/api/auth/login">
           <p className="small" style={{ margin: "0 0 18px" }}>
-            Pakai nomor HP dan password yang kakak buat waktu tanda tangan kontrak.
+            Pakai nomor HP dan password akun penghuni. Akun dibuat lewat link yang dikirim setelah deposit diverifikasi.
           </p>
           {notice && <p className={`notice ${notice.bad ? "bad" : "ok"}`} role="alert">{notice.text}</p>}
           <label className="lbl" htmlFor="phone">Nomor HP</label>

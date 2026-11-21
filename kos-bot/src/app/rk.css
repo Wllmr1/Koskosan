@@ -325,3 +325,26 @@
 .rk .pill-ok{color:var(--ok);border-color:var(--ok);background:transparent}
 .rk .pill-warn{color:var(--warn);border-color:var(--warn);background:transparent}
 .rk .pill-mute{color:var(--ink-3);background:transparent}
+
+/* ── manual payments: bill labels, notices, proof upload ── */
+.rk .btn.wa{white-space:nowrap}
+.rk .pill-bad{color:var(--bad);border-color:var(--bad)}
+.rk .pill-pend{color:#4A3AA0;border-color:#4A3AA0}
+.rk .kind-tag{display:inline-block;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--ink);padding:1px 7px;margin-right:8px;vertical-align:2px}
+.rk .rent-notice.saved{color:var(--ink);border-left:3px solid var(--ok)}
+.rk .due-notice{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;background:var(--bg-2);border-left:3px solid var(--warn);padding:12px 16px;margin:12px 0 0;font-size:15px}
+.rk .due-notice.late{border-left-color:var(--bad)}
+.rk .due-notice .btn{min-height:38px}
+.rk .bill-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:16px 0}
+.rk .bill-row > div:first-child{flex:1 1 260px;display:flex;flex-direction:column;gap:2px}
+.rk .bill-row > div:first-child strong{font-weight:500}
+.rk .bill-pay{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+.rk .bill-pay details{flex:1 1 260px}
+.rk .bill-pay summary{list-style:none;cursor:pointer}
+.rk .bill-pay summary::-webkit-details-marker{display:none}
+.rk .bill-pay details[open] summary{margin-bottom:12px}
+.rk .proof-form{display:flex;flex-direction:column;gap:12px;margin:8px 0}
+.rk .proof-drop{display:flex;flex-direction:column;gap:6px;border:1.5px dashed var(--line-2);padding:18px;background:#fff;font-size:14.5px}
+.rk .proof-drop small{color:var(--ink-3)}
+.rk .proof-form.compact .proof-drop{padding:12px}
+.rk .proof-form .btn{align-self:flex-start}

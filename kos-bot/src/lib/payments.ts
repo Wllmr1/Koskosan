@@ -8,6 +8,10 @@ import { contractLabel } from "./contract-terms";
 import { promoteToMember } from "./chat/context";
 import { decrypt } from "./crypto";
 import { deliverToContact, deliverToRenter } from "./chat/deliver";
+import { createLocalInvoice } from "./billing";
+import { createPasswordSetupLink } from "./password-setup";
+import { sendTemplateWithUrlButton, waIdFromE164 } from "./whatsapp";
+import { whatsappEnabled } from "./features";
 
 export type PaymentInput = {
   invoiceCode: string;
@@ -21,9 +25,9 @@ export type PaymentInput = {
 export type PaymentOutcome = "duplicate" | "unknown_invoice" | "partial" | "paid";
 
 /**
- * The ONLY place an invoice becomes paid. Called by the Xendit webhook and, in
- * development, by the fake payment page — so a simulated payment runs exactly
- * the code a real one does. The chatbot can never call this.
+ * The ONLY place an invoice becomes paid. Called when the owner accepts a
+ * transfer proof (lib/payment-proofs.ts), and by the legacy Xendit webhook and
+ * development pay page. The chatbot can never call this.
  */
 export async function recordPayment(input: PaymentInput): Promise<PaymentOutcome> {
   try {
@@ -61,7 +65,9 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentOutcome
   if (updated.status !== InvoiceStatus.PAID) return "partial";
 
   try {
-    if (invoice.kind === InvoiceKind.ONBOARDING && invoice.application) {
+    if (invoice.kind === InvoiceKind.DEPOSIT && invoice.application) {
+      await verifyDeposit(invoice.application.id, invoice.id, amount, updated.code);
+    } else if (invoice.kind === InvoiceKind.ONBOARDING && invoice.application) {
       await completeOnboarding(invoice.application.id, invoice.id, amount, updated.code);
     } else if (invoice.kind === InvoiceKind.GUEST && invoice.guestStay) {
       await approveGuest(invoice.guestStay.id, updated.code);
@@ -237,6 +243,117 @@ async function completeOnboarding(applicationId: string, invoiceId: string, amou
     );
   }
   await deliverToRenter(result.tenant.id, `${welcome}\n\nAda yang mau ditanyakan soal pindahan?`);
+}
+
+const SETUP_LINK_TTL_MS = 7 * 86_400_000;
+
+/**
+ * The owner accepted the deposit transfer. The person becomes a renter with an
+ * account (no password yet) and a PENDING lease: the room is held for them, but
+ * it is only theirs once the paper contract is signed (lib/onboarding.ts). The
+ * first month's rent is billed now, due on the move-in date.
+ */
+async function verifyDeposit(applicationId: string, invoiceId: string, amount: number, invoiceCode: string) {
+  const app = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+    include: { room: { include: { roomType: true } }, contact: true },
+  });
+  if (app.status === ApplicationStatus.VERIFIED || app.status === ApplicationStatus.COMPLETED) return;
+  if (!app.fullName || !app.phoneE164 || !app.idNumberEnc || !app.dateOfBirth) return;
+
+  const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
+  const todayUtc = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  const start = app.moveInDate && app.moveInDate > todayUtc ? app.moveInDate : todayUtc;
+  const months = applicationMonths(app, settings.minMonths);
+  const monthlyRent = app.signedMonthlyRent ?? app.room.roomType.monthlyPrice;
+  const deposit = app.signedDeposit ?? app.room.roomType.monthlyPrice * settings.depositMonths;
+
+  const existing = await prisma.tenant.findUnique({ where: { phoneE164: app.phoneE164 } });
+  if (existing && !samePerson(existing, app)) {
+    await holdForReview(app, amount, invoiceCode);
+    return;
+  }
+
+  const tenantCount = await prisma.tenant.count();
+  const accountCode = `WA-${String(tenantCount + 1).padStart(4, "0")}`;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const tenant = await tx.tenant.upsert({
+      where: { phoneE164: app.phoneE164! },
+      create: {
+        accountCode,
+        fullName: app.fullName!,
+        phoneE164: app.phoneE164!,
+        dateOfBirth: app.dateOfBirth!,
+        idNumberEnc: app.idNumberEnc!,
+        idLast4: app.idLast4 ?? "0000",
+        ktpObjectKey: app.ktpObjectKey,
+      },
+      update: { fullName: app.fullName!, ktpObjectKey: app.ktpObjectKey },
+    });
+
+    const lease = await tx.lease.create({
+      data: {
+        tenantId: tenant.id,
+        roomId: app.roomId,
+        plan: app.plan,
+        monthlyRent,
+        deposit,
+        startDate: start,
+        endDate: addMonths(start, months),
+        status: LeaseStatus.PENDING,
+      },
+    });
+
+    await tx.invoice.update({ where: { id: invoiceId }, data: { leaseId: lease.id } });
+    await tx.room.updateMany({ where: { id: app.roomId, status: RoomStatus.AVAILABLE }, data: { status: RoomStatus.BOOKED } });
+    await tx.application.update({ where: { id: app.id }, data: { status: ApplicationStatus.VERIFIED, leaseId: lease.id } });
+    return { tenant, lease };
+  });
+
+  const period = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  await createLocalInvoice({
+    kind: InvoiceKind.RENT,
+    description: `Sewa bulan pertama — ${period.toLocaleDateString("id-ID", { month: "long", year: "numeric", timeZone: "UTC" })}`,
+    amount: monthlyRent,
+    dueDate: start,
+    leaseId: result.lease.id,
+    period,
+  });
+
+  await notifyOwner({
+    dedupeKey: `deposit:${app.reference}`,
+    title: "Deposit diterima",
+    subject: `Deposit ${app.reference} diterima: ${app.fullName}`,
+    body: [
+      `Deposit ${rp(amount)} (${invoiceCode}) dari ${app.fullName} sudah diverifikasi.`,
+      `Akun: ${result.tenant.accountCode}`,
+      `Kamar disiapkan: ${app.room.code} (${app.room.roomType.name})`,
+      `Masuk: ${niceDate(start)} · kontrak ${contractLabel(months)}`,
+      `HP: ${app.phoneE164}`,
+      ``,
+      `Tagihan sewa bulan pertama sudah dibuat, jatuh tempo ${niceDate(start)}.`,
+      `Kontrak ditandatangani di kertas; catat di dashboard: Pendaftaran → Catat kontrak.`,
+    ].join("\n"),
+    short: `Deposit ${app.reference} ${rp(amount)} dari ${app.fullName.split(" ")[0]} diverifikasi.`,
+  });
+
+  const first = app.fullName.split(" ")[0];
+  if (existing?.passwordHash) {
+    const text = `Deposit *${rp(amount)}* untuk ${app.reference} sudah kami verifikasi ✅\n\nKak ${first} sudah punya akun penghuni, jadi cukup masuk pakai nomor HP dan password yang lama untuk lihat detail kamar dan tagihan.`;
+    if (app.contactId) await deliverToContact(app.contactId, text, [{ kind: "link", label: "Masuk", path: "/masuk" }]);
+  } else {
+    const link = await createPasswordSetupLink(result.tenant.id, SETUP_LINK_TTL_MS);
+    const path = new URL(link).pathname;
+    const text = `Deposit *${rp(amount)}* untuk ${app.reference} sudah kami verifikasi ✅\n\nSekarang kak ${first} bisa buat akun penghuni untuk lihat detail kamar dan tagihan. Link berlaku 7 hari.`;
+    if (app.contactId) await deliverToContact(app.contactId, text, [{ kind: "link", label: "Buat akun", path }]);
+    if (whatsappEnabled() && app.contact?.channel !== Channel.WHATSAPP) {
+      await sendTemplateWithUrlButton(waIdFromE164(app.phoneE164), "deposit_verified", "id", [first, app.reference], path.split("/").pop()!).catch(
+        (e) => log.warn("deposit_verified template failed", { reference: app.reference, message: String(e) })
+      );
+    }
+  }
+  if (app.contact?.channel === Channel.WHATSAPP) await promoteToMember(app.contact.id, result.tenant.id);
 }
 
 async function approveGuest(guestStayId: string, invoiceCode: string) {

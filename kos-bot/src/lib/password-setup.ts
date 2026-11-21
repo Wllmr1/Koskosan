@@ -7,10 +7,10 @@ const TTL_MS = 24 * 3_600_000;
 const INVALID = "Link sudah dipakai atau kedaluwarsa. Minta link baru ke pemilik kos ya kak.";
 
 /** A single-use link the owner copies and sends to the renter. Only its hash is stored. */
-export async function createPasswordSetupLink(tenantId: string): Promise<string> {
+export async function createPasswordSetupLink(tenantId: string, ttlMs = TTL_MS): Promise<string> {
   const { raw, hash } = newToken();
   await prisma.passwordSetupToken.create({
-    data: { tenantId, tokenHash: hash, expiresAt: new Date(Date.now() + TTL_MS) },
+    data: { tenantId, tokenHash: hash, expiresAt: new Date(Date.now() + ttlMs) },
   });
   return `${env().APP_URL}/atur-password/${raw}`;
 }

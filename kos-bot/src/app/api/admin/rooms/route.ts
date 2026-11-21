@@ -27,16 +27,16 @@ export async function POST(req: NextRequest) {
     status: form.get("status"),
     availableOn: form.get("availableOn") ?? "",
   });
-  if (!parsed.success) return NextResponse.redirect(new URL("/admin?room=invalid#kamar", req.url), { status: 303 });
+  if (!parsed.success) return NextResponse.redirect(new URL("/admin/kamar?room=invalid", req.url), { status: 303 });
 
   const { roomId, status, availableOn } = parsed.data;
   const room = await prisma.room.findUnique({ where: { id: roomId } });
-  if (!room) return NextResponse.redirect(new URL("/admin?room=invalid#kamar", req.url), { status: 303 });
+  if (!room) return NextResponse.redirect(new URL("/admin/kamar?room=invalid", req.url), { status: 303 });
 
   // A room with a live tenant cannot be put back on the market from here.
   const activeLease = await prisma.lease.findFirst({ where: { roomId, status: "ACTIVE" }, select: { id: true } });
   if (activeLease && status === RoomStatus.AVAILABLE) {
-    return NextResponse.redirect(new URL("/admin?room=occupied#kamar", req.url), { status: 303 });
+    return NextResponse.redirect(new URL("/admin/kamar?room=occupied", req.url), { status: 303 });
   }
 
   await prisma.room.update({
@@ -54,5 +54,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.redirect(new URL("/admin?room=saved#kamar", req.url), { status: 303 });
+  return NextResponse.redirect(new URL("/admin/kamar?room=saved", req.url), { status: 303 });
 }

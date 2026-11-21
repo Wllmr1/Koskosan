@@ -165,11 +165,16 @@ const OLD_PAYMENT_TERMS = [
   "Deposit 1× sewa, kembali maksimal 14 hari setelah keluar",
   "Bayar lewat QRIS, virtual account, atau e-wallet. Tidak ada pembayaran tunai ke siapa pun.",
 ];
-const NEW_PAYMENT_TERMS = [
+const ONLINE_PAYMENT_TERMS = [
   "Sewa dibayar di muka, jatuh tempo tanggal 5 tiap bulan",
   "Kontrak 6 bulan, 1 tahun, atau 2 tahun, dibayar per bulan",
   OLD_PAYMENT_TERMS[3],
   OLD_PAYMENT_TERMS[4],
+];
+// Payments became bank transfers checked by the owner.
+const NEW_PAYMENT_TERMS = [
+  ...ONLINE_PAYMENT_TERMS.slice(0, 3),
+  "Bayar lewat transfer bank ke rekening resmi dari asisten, lalu unggah bukti transfer di website. Tidak ada pembayaran tunai ke siapa pun.",
 ];
 const OLD_FAQ_ANSWER = "Bisa. Sewa bulanan jatuh tempo tanggal 5. Kontrak minimal 3 bulan. Kalau bayar tahunan di muka, hanya bayar 11 bulan.";
 const NEW_FAQ_ANSWER = "Bisa. Kontrak 6 bulan, 1 tahun, atau 2 tahun, dan sewa dibayar per bulan, jatuh tempo tanggal 5.";
@@ -212,10 +217,12 @@ async function main() {
     where: { id: "default", houseRules: { equals: OLD_HOUSE_RULES } },
     data: { houseRules: NEW_HOUSE_RULES },
   });
-  await prisma.propertySetting.updateMany({
-    where: { id: "default", paymentTerms: { equals: OLD_PAYMENT_TERMS } },
-    data: { paymentTerms: NEW_PAYMENT_TERMS },
-  });
+  for (const old of [OLD_PAYMENT_TERMS, ONLINE_PAYMENT_TERMS]) {
+    await prisma.propertySetting.updateMany({
+      where: { id: "default", paymentTerms: { equals: old } },
+      data: { paymentTerms: NEW_PAYMENT_TERMS },
+    });
+  }
   await prisma.faqEntry.updateMany({
     where: { question: "Apakah bisa sewa bulanan?", answer: OLD_FAQ_ANSWER },
     data: { answer: NEW_FAQ_ANSWER },

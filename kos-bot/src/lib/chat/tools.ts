@@ -17,7 +17,7 @@ import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { notifyOwner } from "@/lib/notify";
 import { startHandoff, type ChatCtx } from "./context";
 import { addAction } from "./actions";
-import { ApplicationError, createApplication } from "@/lib/application";
+import { ApplicationError, createApplication, newUploadLink } from "@/lib/application";
 import { CONTRACT_MONTHS, contractLabel, contractLengthsText, parseContractMonths } from "@/lib/contract-terms";
 
 export type ToolDef = {
@@ -240,7 +240,7 @@ export const TOOLS: ToolDef[] = [
     name: "start_application",
     progress: "Membuat tautan aman…",
     description:
-      "Send the secure application link for one available room. The person fills in their details, reads and signs the contract, then pays — all on the secure page, never in chat. Call this only after they have chosen a specific room and know its price. Returns the reference.",
+      "Send the secure application link for one available room. On the secure page the person fills in their details, agrees to the Terms & Conditions, then pays the deposit by bank transfer and uploads the receipt — never in chat. The contract is signed on paper at move-in. Call this only after they have chosen a specific room and know its price. Returns the reference.",
     input_schema: {
       type: "object",
       properties: {
@@ -279,7 +279,7 @@ export const TOOLS: ToolDef[] = [
         room: room.code,
         contract: contractLabel(months),
         link_sent: true,
-        steps: "data diri, baca kontrak, tanda tangan digital, lalu pembayaran",
+        steps: "data diri, setujui syarat & ketentuan, bayar deposit lewat transfer bank, lalu kirim bukti transfer; kontrak ditandatangani di kertas saat pindah masuk",
         note: "A 'Buka formulir' button is attached to your reply. Say which room and price it is for and that the link works for 48 hours. Never ask for KTP, ID number or date of birth in the chat.",
       };
     },
@@ -420,39 +420,54 @@ export const TOOLS: ToolDef[] = [
   },
 
   {
-    name: "create_payment",
-    membersOnly: true,
-    progress: "Membuat tagihan…",
+    name: "get_payment_details",
+    progress: "Mengambil info pembayaran…",
     description:
-      "Send a payment button for one existing invoice. Use an invoice code you got from get_my_account or register_guest. The amount comes from the invoice — you can never set it yourself.",
+      "The official bank account to transfer to for one bill, plus a 'Kirim bukti transfer' button where the payer uploads the transfer receipt. Use it when someone asks how to pay or sends the ready-made message 'saya mau bayar deposit/tagihan INV-…'. Works for a new renter's deposit (from their application) and for a verified renter's own bills (code from get_my_account or register_guest). The amount comes from the bill — you can never set it yourself.",
     input_schema: {
       type: "object",
-      properties: { invoice_code: { type: "string", description: "Exact invoice code, e.g. INV-RENT-2610-0004" } },
+      properties: { invoice_code: { type: "string", description: "Exact invoice code, e.g. INV-DEP-2611-0012 or INV-RENT-2610-0004" } },
       required: ["invoice_code"],
     },
     async run(input, ctx) {
-      requireVerified(ctx);
       const code = str(input.invoice_code, 40).toUpperCase();
-
-      // Scoped to this tenant: an invoice belonging to someone else is simply not found.
-      const invoice = await prisma.invoice.findFirst({
-        where: {
-          code,
-          OR: [{ lease: { tenantId: ctx.tenantId } }, { guestStay: { tenantId: ctx.tenantId } }],
-        },
+      const invoice = await prisma.invoice.findUnique({
+        where: { code },
+        include: { application: true, lease: true, guestStay: true },
       });
-      if (!invoice) throw new Error("No such invoice on this account. Call get_my_account first.");
+      const ownBill =
+        !!invoice && ctx.verified && !!ctx.tenantId && (invoice.lease?.tenantId === ctx.tenantId || invoice.guestStay?.tenantId === ctx.tenantId);
+      // A deposit belongs to whoever started the application: the same chat, or the phone number they filled in.
+      const app = invoice?.kind === InvoiceKind.DEPOSIT ? invoice.application : null;
+      const ownDeposit =
+        !!app &&
+        app.status === ApplicationStatus.AWAITING_PAYMENT &&
+        (app.contactId === ctx.contactId || (!!ctx.phoneE164 && app.phoneE164 === ctx.phoneE164));
+      if (!invoice || (!ownBill && !ownDeposit)) {
+        throw new Error(
+          "No such bill for this person. A renter must be verified first (send_verification_link on WhatsApp, prompt_login on the website); a new renter's deposit code is shown on their application page."
+        );
+      }
       if (invoice.status === InvoiceStatus.PAID) return { invoice: invoice.code, status: "sudah lunas" };
 
-      addAction(ctx, "Bayar sekarang", `/p/${invoice.code}`);
-      await audit(ctx, "tool:create_payment", { invoice: invoice.code });
+      const s = await settings();
+      if (!s.bankAccountNumber) {
+        throw new Error("The owner has not set the bank account yet. Call handoff_to_human so the owner sends the payment details.");
+      }
+      const pendingProof = await prisma.paymentProof.findFirst({ where: { invoiceId: invoice.id, status: "SUBMITTED" } });
+      const uploadPath = ownDeposit && app ? await newUploadLink(app.id) : "/akun";
+      addAction(ctx, "Kirim bukti transfer", uploadPath);
+      await audit(ctx, "tool:get_payment_details", { invoice: invoice.code });
 
       return {
         invoice: invoice.code,
+        for: invoice.description,
         amount: rp(invoice.amount - invoice.amountPaid),
-        button: "Bayar sekarang",
-        methods: "QRIS, virtual account, e-wallet",
-        note: "The payment button is attached to your reply.",
+        bank: s.bankName,
+        account_number: s.bankAccountNumber,
+        account_name: s.bankAccountName,
+        proof_already_sent: Boolean(pendingProof),
+        note: "Give the bank, account number and account holder EXACTLY as written here, and the exact amount. Ask them to transfer that amount, then tap the 'Kirim bukti transfer' button attached to your reply and upload a photo or screenshot of the receipt. The owner checks it by hand within 1-2 business days and they get a WhatsApp message when it is verified.",
       };
     },
   },
@@ -548,7 +563,6 @@ export const TOOLS: ToolDef[] = [
         guestStayId: stay.id,
       });
 
-      addAction(ctx, "Bayar biaya tamu", `/p/${invoice.code}`);
       await audit(ctx, "tool:register_guest", { guest: stay.code, nights });
 
       return {
@@ -558,8 +572,7 @@ export const TOOLS: ToolDef[] = [
         fee: rp(fee),
         check_in: niceDate(checkIn),
         id_stored_as: maskId(idDigits),
-        button: "Bayar biaya tamu",
-        note: "Approved once paid. Never repeat the guest's full ID or phone number back to anyone.",
+        note: "Approved once paid and verified. Next, call get_payment_details with this invoice code so they get the bank account and the upload button. Never repeat the guest's full ID or phone number back to anyone.",
       };
     },
   },

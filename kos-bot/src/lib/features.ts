@@ -28,10 +28,8 @@ export function fakePaymentsAllowed(e: Env = env(), nodeEnv = process.env.NODE_E
   return !paymentsLive(e) && nodeEnv !== "production";
 }
 
-export function assertProductionReady(e: Env = env(), nodeEnv = process.env.NODE_ENV): void {
-  if (nodeEnv === "production" && !paymentsLive(e)) {
-    throw new Error(
-      "Production needs XENDIT_SECRET_KEY and XENDIT_WEBHOOK_TOKEN. Fake payments are development-only."
-    );
-  }
-}
+/**
+ * Payments are bank transfers checked by the owner, so production no longer
+ * needs Xendit. Kept as the single place boot-time requirements live.
+ */
+export function assertProductionReady(_e: Env = env(), _nodeEnv = process.env.NODE_ENV): void {}

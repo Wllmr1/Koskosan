@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import ProofUpload from "@/components/site/ProofUpload";
 
 type Props = {
   token: string;
@@ -9,21 +10,23 @@ type Props = {
   moveIn: { min: string; value?: string };
   room: { type: string; size: string; price: string };
   contract: string;
+  /** 1 details · 2 terms · 3 pay deposit · 4 upload proof · 5 being verified */
   startStep: number;
-  summary: { rentLabel: string; rentAmount: string; depositAmount: string; total: string };
+  deposit: { amount: string; invoice: string; due: string; rejected?: string } | null;
+  /** wa.me link with the ready message, or null to open the website chat instead. */
+  payLink: string | null;
+  payText: string;
   clauses: { heading: string; body: string }[];
-  contractHash: string;
+  termsHash: string;
 };
 
-const STEPS = ["Data diri", "Kontrak", "Tanda tangan", "Pembayaran"];
+const STEPS = ["Data diri", "Syarat & ketentuan", "Bayar deposit", "Kirim bukti", "Verifikasi"];
 
 export default function ApplyFlow(props: Props) {
   const [step, setStep] = useState(props.startStep);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [agreed, setAgreed] = useState(false);
-  const [hasSignature, setHasSignature] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const fail = (field: string, message: string) => setErrors((e) => ({ ...e, [field]: message }));
   const clearError = (field: string) => setErrors((e) => ({ ...e, [field]: "" }));
@@ -43,8 +46,6 @@ export default function ApplyFlow(props: Props) {
     const idNumber = String(data.get("idNumber") ?? "").replace(/\D/g, "");
     const dob = String(data.get("dateOfBirth") ?? "");
     const ktp = data.get("ktp");
-    const password = String(data.get("password") ?? "");
-    const passwordConfirm = String(data.get("passwordConfirm") ?? "");
 
     let ok = true;
     if (name.split(/\s+/).filter(Boolean).length < 2) { fail("fullName", "Tulis nama lengkap sesuai KTP."); ok = false; }
@@ -58,8 +59,6 @@ export default function ApplyFlow(props: Props) {
     if (idNumber.length !== 16) { fail("idNumber", "Nomor KTP harus 16 digit."); ok = false; }
     if (!(ktp instanceof File) || ktp.size === 0) { fail("ktp", "Foto KTP wajib diunggah."); ok = false; }
     else if (ktp.size > 6 * 1024 * 1024) { fail("ktp", "Ukuran file maksimal 6 MB."); ok = false; }
-    if (password.length < 10) { fail("password", "Password minimal 10 karakter."); ok = false; }
-    else if (password !== passwordConfirm) { fail("passwordConfirm", "Kedua password tidak sama."); ok = false; }
     if (!ok) return;
 
     setBusy(true);
@@ -67,8 +66,8 @@ export default function ApplyFlow(props: Props) {
       const res = await fetch("/api/apply", { method: "POST", body: data });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Gagal mengirim data.");
-      // Reload so the server renders the contract with the details just saved —
-      // the text on screen must be the exact text that gets signed.
+      // Reload so the server renders the terms with the details just saved —
+      // the text on screen must be the exact text that gets agreed and hashed.
       window.location.reload();
       return;
     } catch (error) {
@@ -78,92 +77,30 @@ export default function ApplyFlow(props: Props) {
     }
   }
 
-  /* ── step 3: signature pad ───────────────────────────────────────── */
-  useEffect(() => {
-    if (step !== 3) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = 170 * dpr;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#16192a";
-
-    let drawing = false;
-    const point = (e: PointerEvent): [number, number] => {
-      const r = canvas.getBoundingClientRect();
-      return [e.clientX - r.left, e.clientY - r.top];
-    };
-    const down = (e: PointerEvent) => {
-      drawing = true;
-      setHasSignature(true);
-      clearError("signature");
-      ctx.beginPath();
-      ctx.moveTo(...point(e));
-      canvas.setPointerCapture(e.pointerId);
-      e.preventDefault();
-    };
-    const move = (e: PointerEvent) => {
-      if (!drawing) return;
-      ctx.lineTo(...point(e));
-      ctx.stroke();
-      e.preventDefault();
-    };
-    const up = () => { drawing = false; };
-
-    canvas.addEventListener("pointerdown", down);
-    canvas.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    return () => {
-      canvas.removeEventListener("pointerdown", down);
-      canvas.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-  }, [step]);
-
-  const clearSignature = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasSignature(false);
-  }, []);
-
-  async function submitSignature() {
+  /* ── step 2: terms ───────────────────────────────────────────────── */
+  async function acceptTerms() {
     if (busy) return;
-    if (!hasSignature) { fail("signature", "Tanda tangannya belum ada."); return; }
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    if (!agreed) { fail("agreed", "Centang persetujuan dulu ya."); return; }
     setBusy(true);
     setErrors({});
     try {
       const res = await fetch("/api/apply", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: props.token,
-          signature: canvas.toDataURL("image/png"),
-          agreed: "true",
-          shownHash: props.contractHash,
-        }),
+        body: JSON.stringify({ token: props.token, agreed: true, shownHash: props.termsHash }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Gagal menyimpan tanda tangan.");
-      setStep(4);
-      // Straight to the payment page — the bot never sends a payment URL itself.
-      window.location.href = json.paymentUrl;
+      if (!res.ok) throw new Error(json.error ?? "Gagal menyimpan persetujuan.");
+      // The deposit invoice now exists: reload so the server shows it.
+      window.location.reload();
     } catch (error) {
-      fail("signature", (error as Error).message);
+      fail("agreed", (error as Error).message);
       setBusy(false);
     }
+  }
+
+  function openPayChat() {
+    window.dispatchEvent(new CustomEvent("kos:open-chat", { detail: { text: props.payText } }));
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -189,7 +126,7 @@ export default function ApplyFlow(props: Props) {
       {step === 1 && (
         <form className="form" onSubmit={submitDetails} noValidate>
           <p className="notice">
-            Data ini dipakai untuk kontrak sewa dan disimpan terenkripsi. Kami tidak pernah meminta data kakak lewat
+            Data ini dipakai untuk administrasi dan kontrak sewa, disimpan terenkripsi. Kami tidak pernah meminta data kakak lewat
             chat.
           </p>
 
@@ -214,26 +151,13 @@ export default function ApplyFlow(props: Props) {
             <input name="ktp" type="file" accept="image/jpeg,image/png,image/webp" onChange={() => clearError("ktp")} required />
           </Field>
 
-          <div className="row2">
-            <Field
-              label="Buat password"
-              error={errors.password}
-              hint="Minimal 10 karakter. Dipakai untuk masuk sebagai penghuni."
-            >
-              <input name="password" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("password")} required />
-            </Field>
-            <Field label="Ulangi password" error={errors.passwordConfirm}>
-              <input name="passwordConfirm" type="password" autoComplete="new-password" minLength={10} onInput={() => clearError("passwordConfirm")} required />
-            </Field>
-          </div>
-
           <Field label="Tanggal mulai masuk" error={errors.moveInDate}>
             <input name="moveInDate" type="date" min={props.moveIn.min} defaultValue={props.moveIn.value ?? props.moveIn.min} required />
           </Field>
 
           <div className="actions">
             <button className="btn pri" type="submit" disabled={busy}>
-              {busy ? "Menyimpan…" : "Lanjut ke kontrak"}
+              {busy ? "Menyimpan…" : "Lanjut ke syarat & ketentuan"}
             </button>
           </div>
         </form>
@@ -242,7 +166,7 @@ export default function ApplyFlow(props: Props) {
       {step === 2 && (
         <>
           <div className="contract">
-            <h3>Perjanjian Sewa Kamar Kos</h3>
+            <h3>Syarat &amp; Ketentuan Sewa</h3>
             <p className="ref">Referensi {props.reference}</p>
             {props.clauses.map((clause) => (
               <div key={clause.heading} className="clause">
@@ -258,50 +182,65 @@ export default function ApplyFlow(props: Props) {
               checked={agreed}
               onChange={(e) => { setAgreed(e.target.checked); clearError("agreed"); }}
             />
-            <span>Saya sudah membaca dan menyetujui seluruh isi kontrak di atas.</span>
+            <span>Saya sudah membaca dan menyetujui Syarat &amp; Ketentuan di atas.</span>
           </label>
           {errors.agreed && <ErrorText>{errors.agreed}</ErrorText>}
 
           <div className="actions">
-            <button
-              className="btn pri"
-              type="button"
-              onClick={() => (agreed ? setStep(3) : fail("agreed", "Centang persetujuan dulu ya."))}
-            >
-              Lanjut tanda tangan
+            <button className="btn pri" type="button" onClick={acceptTerms} disabled={busy}>
+              {busy ? "Menyimpan…" : "Setuju, lanjut bayar deposit"}
             </button>
             <button className="btn" type="button" onClick={() => setStep(1)}>Kembali</button>
           </div>
         </>
       )}
 
-      {step === 3 && (
+      {step === 3 && props.deposit && (
         <>
-          <p style={{ color: "var(--ink-2)", marginTop: 0 }}>
-            Tanda tangan di kotak ini pakai jari atau mouse. Tanda tangan, waktu, dan alamat IP dicatat sebagai bukti
-            persetujuan.
-          </p>
-          <canvas ref={canvasRef} className="sig" aria-label="Kotak tanda tangan" />
-          {errors.signature && <ErrorText>{errors.signature}</ErrorText>}
-
+          {props.deposit.rejected && (
+            <p className="err" role="alert">Bukti transfer sebelumnya ditolak: {props.deposit.rejected} Silakan kirim ulang.</p>
+          )}
           <div className="paybox">
-            <Row label={props.summary.rentLabel} value={props.summary.rentAmount} />
-            <Row label="Deposit (dikembalikan)" value={props.summary.depositAmount} />
-            <Row label="Total pembayaran pertama" value={props.summary.total} total />
+            <Row label="Deposit (dikembalikan saat keluar)" value={props.deposit.amount} total />
           </div>
-
+          <p className="notice">
+            Pembayaran lewat transfer bank. Tekan tombol di bawah untuk minta nomor rekening ke asisten kami di WhatsApp —
+            pesannya sudah kami siapkan. Bayar paling lambat {props.deposit.due}. Sewa bulan pertama ditagih terpisah
+            setelah deposit diverifikasi.
+          </p>
           <div className="actions">
-            <button className="btn pri" type="button" onClick={submitSignature} disabled={busy}>
-              {busy ? "Memproses…" : `Tanda tangani & bayar ${props.summary.total}`}
-            </button>
-            <button className="btn" type="button" onClick={clearSignature}>Ulangi</button>
-            <button className="btn" type="button" onClick={() => setStep(2)}>Kembali</button>
+            {props.payLink ? (
+              <a className="btn pri wa" href={props.payLink} target="_blank" rel="noreferrer">Minta info rekening di WhatsApp</a>
+            ) : (
+              <button className="btn pri wa" type="button" onClick={openPayChat}>Minta info rekening ke asisten</button>
+            )}
+            <button className="btn" type="button" onClick={() => setStep(4)}>Saya sudah transfer</button>
           </div>
         </>
       )}
 
-      {step === 4 && (
-        <p className="notice" style={{ textAlign: "center" }}>Mengarahkan ke halaman pembayaran…</p>
+      {step === 4 && props.deposit && (
+        <>
+          <p style={{ color: "var(--ink-2)", marginTop: 0 }}>
+            Unggah foto atau screenshot bukti transfer deposit {props.deposit.amount} ({props.deposit.invoice}). Pemilik kos
+            akan mengeceknya secara manual.
+          </p>
+          <ProofUpload action="/api/apply/proof" fields={{ token: props.token }} />
+          <div className="actions">
+            <button className="btn" type="button" onClick={() => setStep(3)}>Kembali</button>
+          </div>
+        </>
+      )}
+
+      {step === 5 && (
+        <div className="center">
+          <div className="done-mark wait">…</div>
+          <h2 style={{ fontSize: "clamp(26px,3.4vw,36px)", marginBottom: 12 }}>Pembayaran sedang diverifikasi</h2>
+          <p>
+            Bukti transfer sudah kami terima. Pengecekan memakan waktu <b>1–2 hari kerja</b>. Kakak akan dapat pesan
+            WhatsApp begitu pembayaran terverifikasi, berisi link untuk membuat akun penghuni.
+          </p>
+        </div>
       )}
     </div>
   );

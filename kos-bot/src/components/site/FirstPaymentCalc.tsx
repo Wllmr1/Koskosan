@@ -20,7 +20,7 @@ export default function FirstPaymentCalc({
     <div className="calc">
       <div>
         <h3>Hitung pembayaran pertama.</h3>
-        <p style={{ color: "var(--ink-2)" }}>Pilih tipe kamar untuk melihat total yang dibayar saat tanda tangan, dengan bayar bulanan.</p>
+        <p style={{ color: "var(--ink-2)" }}>Pilih tipe kamar untuk melihat deposit dan sewa bulan pertama. Deposit dibayar dulu untuk menyimpan kamar; sewa bulan pertama ditagih setelah deposit diverifikasi.</p>
         <label className="lbl" htmlFor="ck" style={{ display: "block", marginTop: 18 }}>Tipe kamar</label>
         <select id="ck" value={at} onChange={(e) => setAt(Number(e.target.value))}>
           {types.map((t, i) => (

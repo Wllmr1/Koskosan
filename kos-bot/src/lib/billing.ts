@@ -72,7 +72,9 @@ export async function createLocalInvoice(data: {
         ? "NEW"
         : data.kind === InvoiceKind.UTILITY_OVERAGE
           ? "LISTRIK"
-          : "RENT";
+          : data.kind === InvoiceKind.DEPOSIT
+            ? "DEP"
+            : "RENT";
   return prisma.invoice.create({
     data: {
       code: await nextInvoiceCode(prefix),

@@ -12,8 +12,8 @@ export const metadata = { title: "Biaya" };
 const STEPS = [
   { t: "Pilih kamar", d: "Cek ketersediaan atau tanya asisten soal tipe dan harga." },
   { t: "Isi data diri", d: "Nama, kontak, KTP, dan tanggal masuk di formulir aman." },
-  { t: "Tanda tangan digital", d: "Kontrak langsung di layar." },
-  { t: "Bayar & serah kunci", d: "Bayar pembayaran pertama secara online, lalu terima kunci." },
+  { t: "Setujui & bayar deposit", d: "Centang syarat & ketentuan, transfer deposit, lalu unggah bukti transfernya." },
+  { t: "Tanda tangan & serah kunci", d: "Setelah deposit diverifikasi, bayar sewa bulan pertama dan tanda tangan kontrak saat pindah masuk." },
 ];
 
 export default async function FeesPage() {

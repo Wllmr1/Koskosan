@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!(await isAdmin())) return new NextResponse("unauthorized", { status: 401 });
 
   const key = req.nextUrl.searchParams.get("key") ?? "";
-  if (!/^(ktp|contracts|signatures)\/[A-Za-z0-9._-]+$/.test(key)) {
+  if (!/^(ktp|contracts|signatures|proofs)\/[A-Za-z0-9._-]+$/.test(key)) {
     return new NextResponse("invalid key", { status: 400 });
   }
 

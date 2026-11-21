@@ -4,6 +4,11 @@ import { currentRenter } from "@/lib/renter-auth";
 import { loadRenterAccount } from "@/lib/renter-account";
 import { niceDate, rp } from "@/lib/money";
 import OpenChatButton from "@/components/OpenChatButton";
+import PayChatButton from "@/components/site/PayChatButton";
+import ProofUpload from "@/components/site/ProofUpload";
+import { botChatLink } from "@/lib/whatsapp";
+import { billPayText } from "@/lib/pay-text";
+import type { BillState } from "@/lib/payment-proofs";
 import { PageHead, Section } from "@/components/site/ui";
 
 export const dynamic = "force-dynamic";
@@ -11,17 +16,49 @@ export const metadata = { title: "Akun saya", robots: { index: false, follow: fa
 
 const TICKET: Record<TicketStatus, string> = { OPEN: "Diterima", IN_PROGRESS: "Sedang dikerjakan", RESOLVED: "Selesai" };
 
+const STATE: Record<BillState, { text: string; tone: string }> = {
+  due: { text: "Belum dibayar", tone: "pill-warn" },
+  late: { text: "Terlambat", tone: "pill-bad" },
+  pending: { text: "Sedang diverifikasi", tone: "pill-pend" },
+  rejected: { text: "Bukti ditolak", tone: "pill-bad" },
+  paid: { text: "Lunas", tone: "pill-ok" },
+  closed: { text: "Tidak berlaku", tone: "pill-mute" },
+};
+
 /** The renter's own page: room, contract, bills, electricity, payments, guests, complaints. */
 export default async function AccountPage() {
   const renter = await currentRenter();
   if (!renter) redirect("/masuk");
   const a = await loadRenterAccount(renter.id);
   const lease = a.lease;
-  const ended = lease && lease.status !== "ACTIVE";
+  const ended = lease && (lease.status === "ENDED" || lease.status === "CANCELLED");
 
   return (
     <>
       <PageHead title={`Halo, ${a.name.split(" ")[0]}`} sub={`Nomor akun ${a.accountCode}`} />
+
+      {lease && lease.status === "PENDING" && (
+        <p className="rent-notice saved">
+          {lease.roomCode
+            ? <>Kamar <b>{lease.roomCode}</b> sudah disimpan untuk kakak mulai {niceDate(lease.startDate)}. Kontrak ditandatangani di kertas saat pindah masuk.</>
+            : <>Deposit sudah diverifikasi. Kamar {lease.roomType} disiapkan untuk kakak mulai {niceDate(lease.startDate)}; nomor kamarnya kami beri tahu 7 hari sebelum masuk.</>}
+        </p>
+      )}
+
+      {a.notices.map((b) => (
+        <div key={b.code} className={`due-notice${b.state === "late" ? " late" : ""}`}>
+          <div>
+            <b>
+              {b.state === "late"
+                ? `${b.kindLabel}: ${b.description} terlambat ${b.daysLate} hari`
+                : `${b.kindLabel}: ${b.description} jatuh tempo ${niceDate(b.dueDate)}`}
+            </b>{" "}
+            · {rp(b.remaining)}
+            {b.rejectReason && <span className="small"> · Bukti sebelumnya ditolak: {b.rejectReason}</span>}
+          </div>
+          <a className="btn" href={`#${b.code}`}>Bayar</a>
+        </div>
+      ))}
 
       <div className="account-top">
         <section className="panel">
@@ -33,7 +70,8 @@ export default async function AccountPage() {
               {ended && <p className="rent-notice">Kontrak ini sudah berakhir.</p>}
               {lease.notStarted && <p className="rent-notice">Kamar siap ditempati mulai {niceDate(lease.startDate)}.</p>}
               <dl className="facts">
-                <div><dt>Kamar</dt><dd><a href={`/kamar/${encodeURIComponent(lease.roomCode)}`}>{lease.roomCode}</a>, {lease.roomType}</dd></div>
+                <div><dt>Kamar</dt><dd>{lease.roomCode ? `${lease.roomCode}, ${lease.roomType}` : `${lease.roomType} (nomor kamar menyusul)`}</dd></div>
+                {lease.status === "PENDING" && <div><dt>Kontrak</dt><dd>Ditandatangani di kertas saat pindah masuk</dd></div>}
                 <div><dt>Sewa</dt><dd>{rp(lease.monthlyRent)} per bulan, {lease.plan === "YEARLY" ? "bayar tahunan" : "bayar bulanan"}</dd></div>
                 <div><dt>Masa kontrak</dt><dd>{niceDate(lease.startDate)} sampai {niceDate(lease.endDate)}</dd></div>
                 {!ended && !lease.notStarted && <div><dt>Sisa kontrak</dt><dd>{lease.daysLeft} hari</dd></div>}
@@ -67,20 +105,30 @@ export default async function AccountPage() {
       </div>
 
       {a.bills.length > 0 && (
-        <Section title="Tagihan belum lunas">
+        <Section title="Tagihan" sub="Bayar lewat transfer bank: minta nomor rekening ke asisten, lalu kirim bukti transfernya di sini. Dicek pemilik kos dalam 1–2 hari kerja.">
           <div className="bill-list">
             {a.bills.map((b) => (
-              <div key={b.code} className="bill-row">
+              <div key={b.code} id={b.code} className="bill-row">
                 <div>
+                  <span className={`kind-tag kind-${b.kind.toLowerCase()}`}>{b.kindLabel}</span>
                   <strong>{b.description}</strong>
                   <span className="small muted">
-                    Jatuh tempo {niceDate(b.dueDate)}
-                    {b.overdue && <span className="overdue"> · terlambat</span>}
+                    {b.code} · jatuh tempo {niceDate(b.dueDate)}
                     {b.lateFee > 0 && `, denda sejauh ini ${rp(b.lateFee)}`}
                   </span>
+                  {b.rejectReason && <span className="small overdue">Bukti ditolak: {b.rejectReason}</span>}
                 </div>
                 <span className="bill-amount">{rp(b.remaining)}</span>
-                <a className="btn pri" href={`/p/${b.code}`}>Bayar</a>
+                <span className={`pill ${STATE[b.state].tone}`}>{b.state === "late" ? `Terlambat ${b.daysLate} hari` : STATE[b.state].text}</span>
+                {b.state !== "pending" && (
+                  <div className="bill-pay">
+                    <PayChatButton link={botChatLink(billPayText(b.code, b.description))} text={billPayText(b.code, b.description)} />
+                    <details>
+                      <summary className="btn">Kirim bukti transfer</summary>
+                      <ProofUpload action="/api/akun/bukti" fields={{ invoice: b.code }} compact />
+                    </details>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -5,7 +5,7 @@ import ChatWidget from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
   title: "RoemahKOE",
-  description: "Kos mahasiswa dengan kontrak digital, pembayaran online, dan asisten 24 jam.",
+  description: "Kos mahasiswa dekat kampus, daftar online, dan asisten 24 jam.",
   robots: { index: true, follow: true },
 };
 

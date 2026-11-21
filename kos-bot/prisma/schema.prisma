@@ -58,11 +58,19 @@ enum ApplicationStatus {
   DRAFT
   DETAILS_SUBMITTED
   SIGNED
-  AWAITING_PAYMENT
-  COMPLETED
+  AWAITING_PAYMENT // terms accepted, deposit invoice issued, waiting for the transfer
+  PROOF_SUBMITTED // proof of the deposit transfer uploaded, owner has not checked it yet
+  VERIFIED // owner accepted the deposit: renter account + pending lease exist, paper contract still to sign
+  COMPLETED // paper contract signed and recorded by the owner
   NEEDS_REVIEW // paid, but the phone belongs to a different existing renter — owner decides
   EXPIRED
   CANCELLED
+}
+
+enum ProofStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
 }
 
 enum MessageRole {
@@ -224,13 +232,32 @@ model Invoice {
   gatewayUrl       String?
   expiresAt        DateTime?
   payments         Payment[]
+  proofs           PaymentProof[]
   createdAt        DateTime      @default(now())
 
   @@index([leaseId, status])
   @@index([status, dueDate])
 }
 
-/// Written only by the Xendit webhook. The chatbot can never create one.
+/// A photo or screenshot of a bank transfer, uploaded by the payer. The
+/// owner checks it by hand; accepting it is what records the Payment.
+model PaymentProof {
+  id           String      @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice     @relation(fields: [invoiceId], references: [id])
+  fileKey      String // private storage key
+  status       ProofStatus @default(SUBMITTED)
+  uploadedAt   DateTime    @default(now())
+  reviewedAt   DateTime?
+  reviewedBy   String? // "owner" or "admin:<email>"
+  rejectReason String?
+
+  @@index([status, uploadedAt])
+  @@index([invoiceId])
+}
+
+/// Written when the owner accepts a transfer proof (or, legacy, by the Xendit
+/// webhook). The chatbot can never create one.
 model Payment {
   id         String   @id @default(cuid())
   invoiceId  String
@@ -323,12 +350,16 @@ model Application {
   signedDeposit     Int?
   termMonths        Int?              // contract length chosen when the application starts (null on older yearly ones)
   signedTermMonths  Int?
+  termsAcceptedAt   DateTime? // ticked the Terms & Conditions box (the real contract is signed on paper)
+  termsAcceptedIp   String?
+  uploadTokenHash   String? // proof-upload link the assistant sends with the bank details
   leaseId           String?           @unique
   invoices          Invoice[]
   expiresAt         DateTime
   createdAt         DateTime          @default(now())
 
   @@index([status, expiresAt])
+  @@index([uploadTokenHash])
 }
 
 // ─────────────────────────── chat memory ───────────────────────────
@@ -434,6 +465,10 @@ model PropertySetting {
   utilitiesNote     String   @default("Air dan wifi termasuk, tanpa batas")
   maxGuestNights    Int      @default(3)
   maxGuestsAtOnce   Int      @default(2)
+  bankName          String   @default("")
+  bankAccountNumber String   @default("")
+  bankAccountName   String   @default("")
+  rentalTerms       String[] @default([]) // the Terms & Conditions a new renter ticks before paying the deposit
   updatedAt         DateTime @updatedAt
 }
 

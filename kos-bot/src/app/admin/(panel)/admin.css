@@ -1,0 +1,120 @@
+/* Owner dashboard: the agreed black-and-white design (sidebar + cards).
+   Everything is scoped under .ad so the public site and login pages keep their own look. */
+.ad{
+  --ink:#111;--ink2:#6A6763;--line:#E9E5DF;--page:#F6F2EE;--card:#fff;--band:#F1ECE5;
+  --ok:#1E6B45;--warn:#9A6410;--bad:#A42A3F;--pend:#4A3AA0;--occ:#3A3734;
+  --ok-soft:#E3F0E8;--bad-soft:#F6E1E5;--wash:#F1ECE5;--paper:#fff;--ink-2:#6A6763;--ink-3:#8A8580;
+  --display:"Bodoni Moda",Didot,Georgia,serif;--sans:"Jost",system-ui,sans-serif;
+  background:var(--page);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;min-height:100vh;
+}
+.ad a{color:inherit}
+.ad .shell{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}
+.ad .side{background:#fff;border-right:1px solid var(--line);padding:20px 0;position:sticky;top:0;height:100vh;overflow:auto}
+.ad .word{font-family:var(--display);font-size:21px;padding:0 22px 18px;display:block;text-decoration:none}
+.ad .grp{font-size:12px;color:var(--ink2);padding:14px 22px 6px}
+.ad .nav{display:flex;align-items:center;padding:8px 22px;color:var(--ink);text-decoration:none;border-left:3px solid transparent}
+.ad .nav:hover{background:var(--page)}
+.ad .nav.on{background:var(--band);border-left-color:var(--ink);font-weight:500}
+.ad .nav .c{margin-left:auto;font-size:12px;color:#fff;background:var(--bad);padding:0 7px;line-height:18px}
+.ad .nav .c.p{background:var(--pend)}
+.ad .main{min-width:0}
+.ad .top{display:flex;align-items:center;gap:18px;padding:14px 32px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ad .top h1{font-family:var(--sans);font-size:20px;font-weight:500;margin:0;letter-spacing:0}
+.ad .top .r{margin-left:auto;display:flex;gap:16px;align-items:center}
+.ad .top .r a,.ad .top .r button.link{color:var(--ink2);text-decoration:none;background:none;border:0;padding:0;font:inherit;cursor:pointer}
+.ad .top .who{color:var(--ink2);font-size:13px}
+.ad .body{padding:26px 32px 48px;max-width:1120px}
+.ad .menu-toggle{display:none}
+
+/* buttons, chips, status */
+.ad .btn{display:inline-block;border:1px solid var(--ink);border-radius:0;padding:6px 12px;font-size:13px;font-weight:500;background:#fff;color:var(--ink);cursor:pointer;font-family:inherit;text-decoration:none;line-height:1.4}
+.ad .btn:hover{background:var(--page)}
+.ad .btn.pri,.ad .btn-pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ad .btn.pri:hover,.ad .btn-pri:hover{opacity:.88;background:var(--ink)}
+.ad .btn.bad{border-color:var(--bad);color:var(--bad)}
+.ad .chips{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.ad .chip{border:1px solid var(--line);background:#fff;padding:4px 10px;font-size:13px;text-decoration:none;color:var(--ink)}
+.ad .chip.on{border-color:var(--ink);font-weight:500}
+.ad .chips .gap{width:14px}
+.ad .st{white-space:nowrap}
+.ad .st::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px;vertical-align:1px;background:currentColor}
+.ad .ok{color:var(--ok)}.ad .warn{color:var(--warn)}.ad .bad{color:var(--bad)}.ad .pend{color:var(--pend)}.ad .mute{color:var(--ink2)}
+.ad .kind{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);padding:1px 6px;white-space:nowrap}
+.ad .crumb{font-size:13px;color:var(--ink2);margin-bottom:12px;display:inline-block;text-decoration:none}
+
+/* dashboard cards */
+.ad .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ad .tile{background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;text-decoration:none;color:inherit;transition:border-color .15s}
+.ad a.tile:hover{border-color:var(--ink)}
+.ad .tile .h{background:var(--band);padding:10px 16px;display:flex;align-items:baseline;font-weight:500;gap:10px}
+.ad .tile .h span{margin-left:auto;font-weight:400;font-size:13px;color:var(--ink2)}
+.ad .tile .h span.bad{color:var(--bad)}.ad .tile .h span.pend{color:var(--pend)}
+.ad .tile .b{padding:14px 16px 16px;flex:1}
+.ad .tile .big{font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.1}
+.ad .tile .lbl{color:var(--ink2);font-size:13px}
+.ad .tile.wide{grid-column:span 2}
+.ad .stack{display:flex;gap:2px;height:14px;margin:14px 0 8px}
+.ad .stack i{display:block;height:100%;border-radius:2px}
+.ad .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2)}
+.ad .legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:var(--c)}
+.ad .prog{height:10px;background:var(--line);border-radius:2px;margin:12px 0 6px;overflow:hidden}
+.ad .prog i{display:block;height:100%;background:var(--occ);border-radius:2px}
+.ad .mini{margin-top:10px}
+.ad .mini div{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.ad .mini div span:last-child{margin-left:auto;color:var(--ink2);white-space:nowrap}
+.ad .more{font-size:13px;color:var(--ink2);margin-top:10px}
+
+/* panels and tables */
+.ad .panel{background:#fff;border:1px solid var(--line);margin-bottom:18px}
+.ad .panel > .h{background:var(--band);padding:12px 20px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ad .panel > .h b{font-weight:500}
+.ad .panel > .h span{color:var(--ink2);font-size:13px}
+.ad .panel > .h .x{margin-left:auto}
+.ad .panel .in{padding:6px 20px 12px;overflow-x:auto}
+.ad .empty{color:var(--ink2);text-align:center;padding:22px 0;margin:0;font-size:13px}
+.ad table{width:100%;border-collapse:collapse;font-size:14px}
+.ad th{text-align:left;font-weight:400;font-size:13px;color:var(--ink2);padding:10px 14px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+.ad td{padding:10px 14px 10px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle}
+.ad tr:last-child td{border-bottom:0}
+.ad td small{display:block;color:var(--ink2);font-size:12px}
+.ad .verify{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:24px;padding:18px 20px}
+.ad .proof{display:block;background:repeating-linear-gradient(45deg,#f3f0ea,#f3f0ea 8px,#ece7df 8px,#ece7df 16px);min-height:200px}
+.ad .proof img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain;background:#fff}
+.ad .kv div{display:flex;padding:7px 0;border-top:1px solid var(--line);gap:12px}
+.ad .kv div span:first-child{width:150px;flex:none;color:var(--ink2)}
+.ad .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:flex-start}
+.ad .reject{display:flex;flex-direction:column;gap:8px;flex:1 1 260px}
+.ad .history{margin-top:18px;font-size:13px;color:var(--ink2)}
+.ad .history div{padding:6px 0;border-top:1px solid var(--line)}
+.ad .note{padding:9px 13px;font-size:13px;margin:0 0 14px;background:var(--ok-soft);color:var(--ok)}
+.ad .note.bad{background:var(--bad-soft);color:var(--bad)}
+
+/* existing pages (meteran, data kos, percakapan, admins…) inside the new frame */
+.ad main.wrap{max-width:none;margin:0;padding:0 !important}
+.ad main.wrap > header:first-child{display:none !important}
+.ad .card{background:#fff;border:1px solid var(--line);border-radius:0}
+.ad h1,.ad h2,.ad h3{font-family:var(--sans);font-weight:500;letter-spacing:0}
+.ad h2{font-size:17px}
+.ad .pill{font-size:12px;padding:1px 8px;border-radius:0;border:1px solid var(--line);background:#fff;color:var(--ink2)}
+.ad .pill-ok{color:var(--ok);border-color:var(--ok)}
+.ad .pill-warn{color:var(--warn);border-color:var(--warn)}
+.ad .pill-mute{color:var(--ink2)}
+.ad label{font-weight:500}
+.ad input,.ad select,.ad textarea{border-radius:0;border:1px solid #CFC9C1;background:#fff;font-family:inherit;font-size:14px;padding:7px 9px;width:100%}
+.ad input[type=checkbox],.ad input[type=radio]{width:auto}
+.ad .admin-nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.ad .admin-nav a{border:1px solid var(--line);background:#fff;padding:4px 10px;font-size:13px;text-decoration:none;border-radius:0}
+.ad .muted{color:var(--ink2)}
+.ad .small{font-size:13px}
+
+@media (max-width:860px){
+  .ad .shell{grid-template-columns:1fr}
+  .ad .side{position:static;height:auto;display:none;border-right:0;border-bottom:1px solid var(--line)}
+  .ad .side.open{display:block}
+  .ad .menu-toggle{display:inline-block}
+  .ad .top{padding:12px 16px}
+  .ad .body{padding:18px 16px 40px}
+  .ad .tiles{grid-template-columns:1fr}
+  .ad .tile.wide{grid-column:auto}
+  .ad .verify{grid-template-columns:1fr}
+}

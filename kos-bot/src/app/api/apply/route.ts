@@ -5,13 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { niceDate, normalizePhone, rp } from "@/lib/money";
 import { putObject, validateImage } from "@/lib/storage";
-import { hashPassword, passwordProblem } from "@/lib/password";
 import { LIMITS, overLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { clientIp } from "@/lib/http";
-import { applicationMonths, buildContractData, findApplicationByToken, firstOpenRoomOfType, onboardingAmount, roomOpenOn } from "@/lib/application";
-import { buildContractPdf, contractHash } from "@/lib/contract";
-import { createLocalInvoice, ensurePaymentUrl } from "@/lib/billing";
+import { applicationMonths, findApplicationByToken, firstOpenRoomOfType, roomOpenOn, termsInputFor } from "@/lib/application";
+import { termsHash } from "@/lib/terms";
+import { createLocalInvoice } from "@/lib/billing";
+import { DEPOSIT_PAY_WINDOW_MS } from "@/lib/payment-proofs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,12 +23,11 @@ const detailsSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   idNumber: z.string().trim(),
   moveInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  password: z.string().max(200),
-  passwordConfirm: z.string().max(200),
 });
 
 /**
- * Step 1 of the secure flow: personal details + KTP photo.
+ * Step 1 of the secure flow: personal details + KTP photo. No password here:
+ * the account is made after the owner verifies the deposit.
  * This is the ONLY place personal data is accepted, and it never touches chat.
  */
 export async function POST(req: NextRequest) {
@@ -45,8 +44,6 @@ export async function POST(req: NextRequest) {
     dateOfBirth: form.get("dateOfBirth"),
     idNumber: form.get("idNumber"),
     moveInDate: form.get("moveInDate"),
-    password: form.get("password"),
-    passwordConfirm: form.get("passwordConfirm"),
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "Data belum lengkap atau formatnya salah." }, { status: 400 });
@@ -88,10 +85,6 @@ export async function POST(req: NextRequest) {
   const phone = normalizePhone(data.phone);
   if (!phone) return NextResponse.json({ error: "Nomor HP tidak valid." }, { status: 400 });
 
-  const passwordError = passwordProblem(data.password, data.passwordConfirm, phone);
-  if (passwordError) return NextResponse.json({ error: passwordError }, { status: 400 });
-  const passwordHash = await hashPassword(data.password);
-
   const idDigits = data.idNumber.replace(/\D/g, "");
   if (idDigits.length !== 16) return NextResponse.json({ error: "Nomor KTP harus 16 digit." }, { status: 400 });
 
@@ -126,122 +119,92 @@ export async function POST(req: NextRequest) {
       idNumberEnc: encrypt(idDigits),
       idLast4: idDigits.slice(-4),
       ktpObjectKey: ktpKey,
-      passwordHash,
       moveInDate: moveIn,
       status: ApplicationStatus.DETAILS_SUBMITTED,
     },
   });
 
-  // Hold the room while they read and sign.
+  // Hold the room while they read the terms and pay the deposit.
   await prisma.room.updateMany({
     where: { id: roomId, status: RoomStatus.AVAILABLE },
     data: { status: RoomStatus.BOOKED },
   });
 
   log.info("application details submitted", { reference: app.reference });
-  return NextResponse.json({ ok: true, next: "contract" });
+  return NextResponse.json({ ok: true, next: "terms" });
 }
 
-const signSchema = z.object({
+const termsSchema = z.object({
   token: z.string().min(20).max(64),
-  signature: z.string().startsWith("data:image/png;base64,").max(600_000),
-  agreed: z.literal("true"),
+  agreed: z.literal(true),
   shownHash: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
 /**
- * Step 2: signature, contract PDF, and the first invoice.
- * Returns the payment URL the browser then redirects to.
+ * Step 2: the renter ticked the Terms & Conditions. Records the agreement and
+ * issues the deposit invoice; they then get the bank details on WhatsApp and
+ * upload the transfer proof (api/apply/proof). The contract is signed on paper.
  */
 export async function PUT(req: NextRequest) {
   const ip = clientIp(req);
-  if (await overLimit("apply-sign", ip, 20, 3_600_000)) {
+  if (await overLimit("apply-terms", ip, 20, 3_600_000)) {
     return NextResponse.json({ error: "Terlalu banyak percobaan." }, { status: 429 });
   }
 
-  const json = await req.json().catch(() => null);
-  const parsed = signSchema.safeParse(json);
-  if (!parsed.success) return NextResponse.json({ error: "Tanda tangan belum lengkap." }, { status: 400 });
+  const parsed = termsSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Centang persetujuan dulu ya." }, { status: 400 });
 
   const app = await findApplicationByToken(parsed.data.token);
   if (!app) return NextResponse.json({ error: "Link sudah tidak berlaku." }, { status: 404 });
-  if (!app.fullName || !app.idNumberEnc) {
-    return NextResponse.json({ error: "Isi data diri dulu." }, { status: 409 });
+  if (!app.fullName || !app.idNumberEnc) return NextResponse.json({ error: "Isi data diri dulu." }, { status: 409 });
+
+  // Already agreed: hand back the same deposit (idempotent).
+  if (app.status !== ApplicationStatus.DETAILS_SUBMITTED) {
+    const existing = await prisma.invoice.findFirst({ where: { applicationId: app.id, kind: InvoiceKind.DEPOSIT } });
+    if (existing) return NextResponse.json({ ok: true, invoice: existing.code, amount: rp(existing.amount) });
+    return NextResponse.json({ error: "Formulir ini sudah diproses." }, { status: 409 });
   }
 
-  // Already signed: just hand back the existing payment link (idempotent).
-  if (app.status === ApplicationStatus.AWAITING_PAYMENT || app.status === ApplicationStatus.SIGNED) {
-    const existing = await prisma.invoice.findFirst({
-      where: { applicationId: app.id, status: { in: ["UNPAID", "PARTIAL"] } },
-    });
-    if (existing) return NextResponse.json({ ok: true, paymentUrl: await ensurePaymentUrl(existing.id) });
-  }
-  if (app.status === ApplicationStatus.COMPLETED) {
-    return NextResponse.json({ error: "Sudah selesai." }, { status: 409 });
-  }
-  if (!(await roomOpenOn(app.id, app.roomId, app.moveInDate ?? new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)))) {
+  const moveIn = app.moveInDate ?? new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  if (!(await roomOpenOn(app.id, app.roomId, moveIn))) {
     return NextResponse.json({ error: "Maaf, kamar ini sudah tidak tersedia." }, { status: 409 });
   }
 
-  const signaturePng = Buffer.from(parsed.data.signature.split(",")[1] ?? "", "base64");
-  if (signaturePng.length < 200) return NextResponse.json({ error: "Tanda tangan belum terbaca." }, { status: 400 });
-
   const settings = await prisma.propertySetting.findUniqueOrThrow({ where: { id: "default" } });
-  const { decrypt } = await import("@/lib/crypto");
-  const idNumber = decrypt(app.idNumberEnc);
-
-  const contractData = await buildContractData(app.id, idNumber);
-
+  const terms = termsInputFor(app, settings);
   // The owner may have changed a price or rule while this page was open.
-  // Never let someone sign text that differs from what they read.
-  if (parsed.data.shownHash !== contractHash(contractData)) {
+  if (parsed.data.shownHash !== termsHash(terms)) {
     return NextResponse.json(
-      { error: "Isi kontrak baru saja berubah. Muat ulang halaman dan baca lagi ya kak.", reload: true },
+      { error: "Syarat dan ketentuan baru saja berubah. Muat ulang halaman dan baca lagi ya kak.", reload: true },
       { status: 409 }
     );
   }
-  const signedAt = new Date();
 
-  const sigKey = `signatures/${app.reference}.png`;
-  await putObject(sigKey, signaturePng, "image/png");
-
-  const pdf = await buildContractPdf(contractData, signaturePng, signedAt, ip);
-  const contractKey = `contracts/${app.reference}.pdf`;
-  await putObject(contractKey, pdf, "application/pdf");
-
-  const amount = onboardingAmount(contractData.monthlyRent, app.plan, settings.yearlyMonths, settings.depositMonths);
-
+  const now = new Date();
   await prisma.application.update({
     where: { id: app.id },
     data: {
-      signatureKey: sigKey,
-      contractKey,
-      contractHash: contractHash(contractData),
-      signedAt,
-      signedIp: ip,
-      signedAgent: req.headers.get("user-agent")?.slice(0, 200) ?? null,
-      amountDue: amount,
-      // The terms as signed: the lease is built from these, not from prices on payment day.
-      signedMonthlyRent: contractData.monthlyRent,
-      signedDeposit: contractData.deposit,
+      termsAcceptedAt: now,
+      termsAcceptedIp: ip,
+      contractHash: termsHash(terms),
+      amountDue: terms.deposit,
+      // The terms as agreed: the lease is built from these, not from prices on verification day.
+      signedMonthlyRent: terms.monthlyRent,
+      signedDeposit: terms.deposit,
       signedTermMonths: applicationMonths(app, settings.minMonths),
-      status: ApplicationStatus.SIGNED,
+      status: ApplicationStatus.AWAITING_PAYMENT,
+      expiresAt: new Date(now.getTime() + DEPOSIT_PAY_WINDOW_MS),
     },
   });
 
-  // Old yearly applications pay several months up front; every new one pays the first month.
-  const rentMonths = app.plan === "YEARLY" ? settings.yearlyMonths : 1;
   const invoice = await createLocalInvoice({
-    kind: InvoiceKind.ONBOARDING,
-    description: `Pembayaran pertama kamar ${app.room.code}: sewa ${rentMonths} bulan + deposit ${rp(contractData.deposit)}`,
-    amount,
-    dueDate: new Date(Date.now() + 86_400_000),
+    kind: InvoiceKind.DEPOSIT,
+    description: `Deposit ${app.room.roomType.name} — ${app.reference}`,
+    amount: terms.deposit,
+    dueDate: new Date(`${new Date(now.getTime() + DEPOSIT_PAY_WINDOW_MS).toISOString().slice(0, 10)}T00:00:00Z`),
     applicationId: app.id,
   });
 
-  const paymentUrl = await ensurePaymentUrl(invoice.id);
-  await prisma.application.update({ where: { id: app.id }, data: { status: ApplicationStatus.AWAITING_PAYMENT } });
-
-  log.info("application signed", { reference: app.reference, invoice: invoice.code });
-  return NextResponse.json({ ok: true, paymentUrl, amount: rp(amount) });
+  log.info("application terms accepted", { reference: app.reference, invoice: invoice.code });
+  return NextResponse.json({ ok: true, invoice: invoice.code, amount: rp(terms.deposit) });
 }

@@ -2,6 +2,10 @@ import { InvoiceKind, InvoiceStatus, LeaseStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { lateFeeFor } from "./billing";
 import { firstOfMonth } from "./money";
+import { billState, daysLate, KIND_LABEL } from "./payment-proofs";
+
+/** The room number is told to a new renter from this long before move-in; until then only the type. */
+export const ROOM_REVEAL_MS = 7 * 86_400_000;
 
 const DAY_MS = 86_400_000;
 /** Late fees apply to recurring charges, not to one-off guest or first payments. */
@@ -23,7 +27,8 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
   ]);
 
   // The lease in force now; failing that, one booked in advance (earliest first).
-  const activeLeases = tenant.leases.filter((l) => l.status === LeaseStatus.ACTIVE);
+  // PENDING = deposit verified, paper contract not signed yet: still theirs to see.
+  const activeLeases = tenant.leases.filter((l) => l.status === LeaseStatus.ACTIVE || l.status === LeaseStatus.PENDING);
   const current = activeLeases.find((l) => l.startDate <= now);
   const upcoming = activeLeases.filter((l) => l.startDate > now).at(-1);
   const active = current ?? upcoming;
@@ -34,6 +39,7 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
   const [openInvoices, payments, guests, tickets, reading, overageBill] = await Promise.all([
     prisma.invoice.findMany({
       where: { ...mine, status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL] } },
+      include: { proofs: { orderBy: { uploadedAt: "desc" }, take: 1 } },
       orderBy: { dueDate: "asc" },
     }),
     prisma.payment.findMany({
@@ -62,10 +68,28 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
 
   const bills = openInvoices.map((inv) => {
     const remaining = inv.amount - inv.amountPaid;
-    const overdue = inv.dueDate < now;
+    const state = billState(inv, inv.proofs, now);
+    const overdue = state === "late";
     const lateFee = overdue && LATE_FEE_KINDS.includes(inv.kind) ? lateFeeFor(inv.dueDate, settings.lateFeePerDay, settings.lateFeeMax, now) : 0;
-    return { code: inv.code, kind: inv.kind, description: inv.description, remaining, dueDate: inv.dueDate, overdue, lateFee };
+    const proof = inv.proofs[0];
+    return {
+      code: inv.code,
+      kind: inv.kind,
+      kindLabel: KIND_LABEL[inv.kind],
+      description: inv.description,
+      remaining,
+      dueDate: inv.dueDate,
+      state,
+      overdue,
+      daysLate: overdue ? daysLate(inv.dueDate, now) : 0,
+      lateFee,
+      rejectReason: proof?.status === "REJECTED" ? proof.rejectReason : null,
+    };
   });
+  // The banner at the top: anything late, or due within a week, that is not already being checked.
+  const notices = bills.filter(
+    (b) => (b.state === "late" || b.state === "due" || b.state === "rejected") && b.dueDate.getTime() - now.getTime() <= ROOM_REVEAL_MS
+  );
 
   const electricity = reading
     ? (() => {
@@ -89,20 +113,23 @@ export async function loadRenterAccount(tenantId: string, now = new Date()) {
     accountCode: tenant.accountCode,
     lease: shown && {
       status: shown.status,
-      roomCode: shown.room.code,
+      // A new renter learns the room number a week before moving in.
+      roomCode: shown.status === LeaseStatus.PENDING && shown.startDate.getTime() - now.getTime() > ROOM_REVEAL_MS ? null : shown.room.code,
+      contractSigned: shown.status === LeaseStatus.ACTIVE || shown.status === LeaseStatus.ENDED,
       roomType: shown.room.roomType.name,
       plan: shown.plan,
       monthlyRent: shown.monthlyRent,
       deposit: shown.deposit,
       startDate: shown.startDate,
       endDate: shown.endDate,
-      notStarted: shown.status === LeaseStatus.ACTIVE && shown.startDate > now,
+      notStarted: (shown.status === LeaseStatus.ACTIVE || shown.status === LeaseStatus.PENDING) && shown.startDate > now,
       daysLeft: Math.max(0, Math.ceil((shown.endDate.getTime() - now.getTime()) / DAY_MS)),
       noticeBy: new Date(shown.endDate.getTime() - 30 * DAY_MS),
       noticePassed: shown.endDate.getTime() - 30 * DAY_MS < now.getTime(),
       hasContract: Boolean(shown.contractKey),
     },
     bills,
+    notices,
     totalOwed: bills.reduce((sum, b) => sum + b.remaining, 0),
     totalLateFees: bills.reduce((sum, b) => sum + b.lateFee, 0),
     electricity,

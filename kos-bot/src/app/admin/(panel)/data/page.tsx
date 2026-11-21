@@ -36,13 +36,27 @@ export default async function PropertyPage({ searchParams }: { searchParams: Pro
         <Text name="utilitiesNote" label="Air, wifi, dll." value={s.utilitiesNote} max={200} hint="Contoh: Air dan wifi termasuk, tanpa batas" />
       </div>
 
+      <h2 style={{ fontSize: 18, margin: "24px 0 4px" }}>Rekening pembayaran</h2>
+      <p className="muted small" style={{ margin: "0 0 12px" }}>
+        Asisten memberikan rekening ini saat penyewa minta info pembayaran (deposit, sewa, listrik). Hanya rekening ini yang pernah disebut asisten.
+      </p>
+      <div className="admin-grid">
+        <Text name="bankName" label="Bank" value={s.bankName} max={60} hint="Contoh: BCA" />
+        <Text name="bankAccountNumber" label="Nomor rekening" value={s.bankAccountNumber} max={30} />
+        <Text name="bankAccountName" label="Atas nama" value={s.bankAccountName} max={80} />
+      </div>
+
       <h2 style={{ fontSize: 18, margin: "24px 0 12px" }}>Daftar</h2>
       <div className="admin-grid">
         <Lines name="facilities" label="Fasilitas" value={s.facilities} />
         <Lines name="paymentTerms" label="Syarat pembayaran" value={s.paymentTerms} />
         <Lines name="guestRules" label="Aturan tamu" value={s.guestRules} />
         <Lines name="houseRules" label="Aturan rumah" value={s.houseRules} />
+        <Lines name="rentalTerms" label="Syarat & ketentuan tambahan" value={s.rentalTerms} />
       </div>
+      <p className="muted small" style={{ margin: "8px 0 0" }}>
+        Syarat &amp; ketentuan yang dicentang calon penghuni sudah memuat sewa, deposit, cara bayar, denda, listrik, tamu, aturan rumah, dan kontrak kertas. Baris tambahan di atas ditambahkan di bawahnya.
+      </p>
 
       <button className="btn btn-pri" type="submit" style={{ marginTop: 20 }}>Simpan</button>
     </form>

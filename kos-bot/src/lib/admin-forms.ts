@@ -30,6 +30,10 @@ export const propertySchema = z.object({
   depositMonths: int(0, 6),
   depositReturnDays: int(0, 90),
   utilitiesNote: text(2, 200),
+  bankName: z.string().trim().max(60),
+  bankAccountNumber: z.string().trim().max(30).regex(/^[0-9 .-]*$/, "nomor rekening hanya angka"),
+  bankAccountName: z.string().trim().max(80),
+  rentalTerms: list,
   houseRules: list,
   paymentTerms: list,
   guestRules: list,
@@ -38,7 +42,8 @@ export const propertySchema = z.object({
 
 export function parseProperty(form: FormData) {
   const raw: Record<string, unknown> = Object.fromEntries(form.entries());
-  for (const key of ["houseRules", "paymentTerms", "guestRules", "facilities"]) raw[key] = lines(form.get(key));
+  for (const key of ["houseRules", "paymentTerms", "guestRules", "facilities", "rentalTerms"]) raw[key] = lines(form.get(key));
+  for (const key of ["bankName", "bankAccountNumber", "bankAccountName"]) raw[key] = String(form.get(key) ?? "");
   return propertySchema.safeParse(raw);
 }
 

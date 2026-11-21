@@ -87,8 +87,9 @@ describe("register_guest overlap rule", () => {
 
   it("allows an earlier stay that does not overlap", async () => {
     expect(await attempt(5, 1)).toBe("ok");
-    expect(ctx.actions[0]).toMatchObject({ label: "Bayar biaya tamu" });
-    expect(ctx.actions[0].path).toMatch(/^\/p\/INV-GUEST-/);
+    // Payment is a bank transfer: the assistant follows up with get_payment_details, not a pay button.
+    expect(ctx.actions).toHaveLength(0);
+    expect(await prisma.invoice.count({ where: { guestStay: { tenantId: ctx.tenantId! }, kind: "GUEST" } })).toBeGreaterThan(0);
   });
 
   it("allows a stay after the others end", async () => {
